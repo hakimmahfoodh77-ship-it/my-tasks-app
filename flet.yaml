@@ -1,0 +1,4 @@
+app:
+  name: "منظّم يومك"
+  package_name: "com.hakim.monazzamyawmak"
+  icon: "icon.png"
