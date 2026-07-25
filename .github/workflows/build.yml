@@ -19,6 +19,6 @@ jobs:
         run: |
           pip install flet reportlab plyer
 
-     - name: Build APK
+      - name: Build APK
         run: |
-          flet build apk app.py --yes
+          flet build apk --yes
