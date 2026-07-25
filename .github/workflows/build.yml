@@ -21,4 +21,4 @@ jobs:
 
       - name: Build APK
         run: |
-          flet build apk
+          flet build apk --yes
