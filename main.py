@@ -81,20 +81,22 @@ def main(page: ft.Page):
         bgcolor=ft.Colors.BLUE_700,
     )
 
-    # تعريف الـ FilePicker وتحديث توافقه مع الإصدار الحديث
-    pdf_save_path = {"path": None}
+    pdf_status = ft.Text("", size=14, color=ft.Colors.BLUE_700)
 
-    def on_save_file_result(e: ft.FilePickerResultEvent):
-        if e.path:
-            pdf_save_path["path"] = e.path
-            generate_and_save_pdf(e.path)
-
-    file_picker = ft.FilePicker()
-    file_picker.on_result = on_save_file_result
-    page.overlay.append(file_picker)
-
-    def generate_and_save_pdf(filepath):
+    # دالة تصدير وإنشاء الـ PDF مباشرة (متوافقة مع الهواتف)
+    def export_pdf_direct(e):
         try:
+            # تحديد مسار الحفظ التلقائي في ذاكرة التطبيق المؤقتة أو المستندات
+            if os.name == 'nt':  # ويندوز للتجربة المحلية
+                filepath = "expenses_report.pdf"
+            else:  # أندرويد
+                # استخدام مجلد التخزين الخارجي المتاح للتطبيق أو مسار مؤقت
+                filepath = os.path.join(page.get_storage_dir() if hasattr(page, 'get_storage_dir') else ".", "expenses_report.pdf")
+            
+            # إذا تعذر الحصول على مسار التخزين، ننشئه في المجلد الحالي
+            if not filepath or filepath == "expenses_report.pdf":
+                filepath = "expenses_report.pdf"
+
             doc = SimpleDocTemplate(filepath, pagesize=letter)
             elements = []
             styles = getSampleStyleSheet()
@@ -139,7 +141,7 @@ def main(page: ft.Page):
 
             elements.append(t)
             doc.build(elements)
-            pdf_status.value = f"✅ تم حفظ التقرير بنجاح في: {filepath}"
+            pdf_status.value = f"✅ تم حفظ التقرير بنجاح!"
         except Exception as ex:
             pdf_status.value = f"❌ خطأ أثناء الحفظ: {str(ex)}"
         page.update()
@@ -399,12 +401,11 @@ def main(page: ft.Page):
         padding=10
     )
 
-    # --- ج) واجهة المصروفات والتصدير عبر FilePicker ---
+    # --- ج) واجهة المصروفات والتصدير المباشر ---
     expenses_list = ft.Column()
     expense_desc = ft.TextField(hint_text="وصف المصروف", expand=True)
     expense_amount = ft.TextField(hint_text="المبلغ", width=100, keyboard_type=ft.KeyboardType.NUMBER)
     total_text = ft.Text("الإجمالي: 0 ريال", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
-    pdf_status = ft.Text("", size=14, color=ft.Colors.BLUE_700)
 
     def load_expenses():
         expenses_list.controls.clear()
@@ -447,13 +448,6 @@ def main(page: ft.Page):
             except ValueError:
                 pass
 
-    def export_pdf(e):
-        try:
-            file_picker.save_file(dialog_title="حفظ تقرير المصروفات", file_name="expenses_report.pdf", allowed_extensions=["pdf"])
-        except Exception as ex:
-            pdf_status.value = "❌ تأكد من تثبيت مكتبة reportlab"
-            page.update()
-
     expenses_view = ft.Container(
         content=ft.Column([
             ft.Text("💰 المصروفات اليومية", size=18, weight=ft.FontWeight.BOLD),
@@ -463,7 +457,7 @@ def main(page: ft.Page):
             ]),
             ft.Row([
                 ft.ElevatedButton("إضافة مصروف", icon=ft.Icons.ATTACH_MONEY, on_click=add_expense),
-                ft.ElevatedButton("تصدير تقرير PDF", icon=ft.Icons.PICTURE_AS_PDF, on_click=export_pdf),
+                ft.ElevatedButton("تصدير تقرير PDF", icon=ft.Icons.PICTURE_AS_PDF, on_click=export_pdf_direct),
             ]),
             pdf_status,
             ft.Divider(),
