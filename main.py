@@ -86,14 +86,11 @@ def main(page: ft.Page):
     # دالة تصدير وإنشاء الـ PDF مباشرة (متوافقة مع الهواتف)
     def export_pdf_direct(e):
         try:
-            # تحديد مسار الحفظ التلقائي في ذاكرة التطبيق المؤقتة أو المستندات
-            if os.name == 'nt':  # ويندوز للتجربة المحلية
+            if os.name == 'nt':
                 filepath = "expenses_report.pdf"
-            else:  # أندرويد
-                # استخدام مجلد التخزين الخارجي المتاح للتطبيق أو مسار مؤقت
+            else:
                 filepath = os.path.join(page.get_storage_dir() if hasattr(page, 'get_storage_dir') else ".", "expenses_report.pdf")
             
-            # إذا تعذر الحصول على مسار التخزين، ننشئه في المجلد الحالي
             if not filepath or filepath == "expenses_report.pdf":
                 filepath = "expenses_report.pdf"
 
@@ -206,7 +203,7 @@ def main(page: ft.Page):
         expand=True,
     )
 
-    # --- ب) واجهة المهام مع ميزة التعديل ومنتقي التاريخ والوقت ---
+    # --- ب) واجهة المهام مع ميزة التعديل والحذف ---
     tasks_list = ft.Column()
     task_input = ft.TextField(hint_text="أدخل مهمة جديدة...", expand=True)
     
@@ -251,27 +248,27 @@ def main(page: ft.Page):
 
     # نافذة منبثقة لتعديل المهمة
     edit_task_id = {"id": None}
-    edit_input = ft.TextField(label="تعديل نص المهمة")
+    edit_task_input = ft.TextField(label="تعديل نص المهمة")
 
     def save_edited_task(e):
-        if edit_task_id["id"] and edit_input.value.strip():
+        if edit_task_id["id"] and edit_task_input.value.strip():
             conn = sqlite3.connect("data.db")
             cur = conn.cursor()
-            cur.execute("UPDATE tasks SET title = ? WHERE id = ?", (edit_input.value.strip(), edit_task_id["id"]))
+            cur.execute("UPDATE tasks SET title = ? WHERE id = ?", (edit_task_input.value.strip(), edit_task_id["id"]))
             conn.commit()
             conn.close()
-            edit_dlg.open = False
+            edit_task_dlg.open = False
             load_tasks()
 
-    edit_dlg = ft.AlertDialog(
+    edit_task_dlg = ft.AlertDialog(
         title=ft.Text("تعديل المهمة"),
-        content=edit_input,
+        content=edit_task_input,
         actions=[
             ft.TextButton("حفظ", on_click=save_edited_task),
-            ft.TextButton("إلغاء", on_click=lambda e: setattr(edit_dlg, 'open', False) or page.update())
+            ft.TextButton("إلغاء", on_click=lambda e: setattr(edit_task_dlg, 'open', False) or page.update())
         ]
     )
-    page.overlay.append(edit_dlg)
+    page.overlay.append(edit_task_dlg)
 
     def load_tasks():
         tasks_list.controls.clear()
@@ -293,13 +290,13 @@ def main(page: ft.Page):
                 c.close()
                 load_tasks()
 
-            def open_edit(e, tid=task_id, t_title=title):
+            def open_edit_task(e, tid=task_id, t_title=title):
                 edit_task_id["id"] = tid
-                edit_input.value = t_title
-                edit_dlg.open = True
+                edit_task_input.value = t_title
+                edit_task_dlg.open = True
                 page.update()
 
-            def delete_task(e, tid=task_id):
+            def delete_task_item(e, tid=task_id):
                 c = sqlite3.connect("data.db")
                 cur = c.cursor()
                 cur.execute("DELETE FROM tasks WHERE id = ?", (tid,))
@@ -334,8 +331,8 @@ def main(page: ft.Page):
                                 spacing=2,
                                 expand=True,
                             ),
-                            ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=ft.Colors.BLUE, on_click=open_edit),
-                            ft.IconButton(icon=ft.Icons.DELETE, icon_size=18, icon_color=ft.Colors.RED, on_click=delete_task),
+                            ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=ft.Colors.BLUE, on_click=open_edit_task),
+                            ft.IconButton(icon=ft.Icons.DELETE, icon_size=18, icon_color=ft.Colors.RED, on_click=delete_task_item),
                         ],
                         alignment=ft.MainAxisAlignment.START,
                     ),
@@ -401,29 +398,91 @@ def main(page: ft.Page):
         padding=10
     )
 
-    # --- ج) واجهة المصروفات والتصدير المباشر ---
+    # --- ج) واجهة المصروفات مع ميزة التعديل والحذف ---
     expenses_list = ft.Column()
     expense_desc = ft.TextField(hint_text="وصف المصروف", expand=True)
     expense_amount = ft.TextField(hint_text="المبلغ", width=100, keyboard_type=ft.KeyboardType.NUMBER)
     total_text = ft.Text("الإجمالي: 0 ريال", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
 
+    # نافذة منبثقة لتعديل المصروف
+    edit_expense_id = {"id": None}
+    edit_exp_desc = ft.TextField(label="تعديل الوصف")
+    edit_exp_amt = ft.TextField(label="تعديل المبلغ", keyboard_type=ft.KeyboardType.NUMBER)
+
+    def save_edited_expense(e):
+        if edit_expense_id["id"] and edit_exp_desc.value.strip() and edit_exp_amt.value.strip():
+            try:
+                amt = float(edit_exp_amt.value.strip())
+                conn = sqlite3.connect("data.db")
+                cur = conn.cursor()
+                cur.execute("UPDATE expenses SET description = ?, amount = ? WHERE id = ?", (edit_exp_desc.value.strip(), amt, edit_expense_id["id"]))
+                conn.commit()
+                conn.close()
+                edit_expense_dlg.open = False
+                load_expenses()
+            except ValueError:
+                pass
+
+    edit_expense_dlg = ft.AlertDialog(
+        title=ft.Text("تعديل المصروف"),
+        content=ft.Column([edit_exp_desc, edit_exp_amt], tight=True),
+        actions=[
+            ft.TextButton("حفظ", on_click=save_edited_expense),
+            ft.TextButton("إلغاء", on_click=lambda e: setattr(edit_expense_dlg, 'open', False) or page.update())
+        ]
+    )
+    page.overlay.append(edit_expense_dlg)
+
     def load_expenses():
         expenses_list.controls.clear()
         conn = sqlite3.connect("data.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT description, amount, created_at FROM expenses")
+        cursor.execute("SELECT id, description, amount, created_at FROM expenses")
         rows = cursor.fetchall()
         conn.close()
 
         total = 0.0
-        for desc, amt, created_at in rows:
+        for row in rows:
+            exp_id, desc, amt, created_at = row
             total += amt
+
+            def open_edit_exp(e, eid=exp_id, d=desc, a=amt):
+                edit_expense_id["id"] = eid
+                edit_exp_desc.value = d
+                edit_exp_amt.value = str(a)
+                edit_expense_dlg.open = True
+                page.update()
+
+            def delete_expense_item(e, eid=exp_id):
+                c = sqlite3.connect("data.db")
+                cur = c.cursor()
+                cur.execute("DELETE FROM expenses WHERE id = ?", (eid,))
+                c.commit()
+                c.close()
+                load_expenses()
+
             expenses_list.controls.append(
-                ft.ListTile(
-                    leading=ft.Icon(ft.Icons.MONEY_OFF, color=ft.Colors.RED_400),
-                    title=ft.Text(desc),
-                    subtitle=ft.Text(f"🕒 {created_at}"),
-                    trailing=ft.Text(f"{amt:.2f} ريال", weight=ft.FontWeight.BOLD)
+                ft.Card(
+                    content=ft.Container(
+                        content=ft.Row(
+                            [
+                                ft.Icon(ft.Icons.MONEY_OFF, color=ft.Colors.RED_400),
+                                ft.Column(
+                                    [
+                                        ft.Text(desc, size=15, weight=ft.FontWeight.BOLD),
+                                        ft.Text(f"🕒 {created_at}", size=11, color=ft.Colors.GREY_700),
+                                    ],
+                                    expand=True,
+                                    spacing=2,
+                                ),
+                                ft.Text(f"{amt:.2f} ريال", weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_800),
+                                ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=ft.Colors.BLUE, on_click=open_edit_exp),
+                                ft.IconButton(icon=ft.Icons.DELETE, icon_size=18, icon_color=ft.Colors.RED, on_click=delete_expense_item),
+                            ],
+                            alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
+                        ),
+                        padding=10,
+                    )
                 )
             )
         total_text.value = f"الإجمالي: {total:.2f} ريال"
