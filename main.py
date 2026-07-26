@@ -81,7 +81,7 @@ def main(page: ft.Page):
         bgcolor=ft.Colors.BLUE_700,
     )
 
-    # متغير لحفظ مسار ملف الـ PDF عبر FilePicker
+    # تعريف الـ FilePicker وتحديث توافقه مع الإصدار الحديث
     pdf_save_path = {"path": None}
 
     def on_save_file_result(e: ft.FilePickerResultEvent):
@@ -89,7 +89,8 @@ def main(page: ft.Page):
             pdf_save_path["path"] = e.path
             generate_and_save_pdf(e.path)
 
-    file_picker = ft.FilePicker(on_result=on_save_file_result)
+    file_picker = ft.FilePicker()
+    file_picker.on_result = on_save_file_result
     page.overlay.append(file_picker)
 
     def generate_and_save_pdf(filepath):
@@ -448,7 +449,6 @@ def main(page: ft.Page):
 
     def export_pdf(e):
         try:
-            # تفعيل نافذة اختيار مكان الحفظ في ملفات الجهاز/الهاتف
             file_picker.save_file(dialog_title="حفظ تقرير المصروفات", file_name="expenses_report.pdf", allowed_extensions=["pdf"])
         except Exception as ex:
             pdf_status.value = "❌ تأكد من تثبيت مكتبة reportlab"
