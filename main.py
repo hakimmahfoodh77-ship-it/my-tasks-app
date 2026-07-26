@@ -270,8 +270,7 @@ def main(page: ft.Page):
                 load_tasks()
 
             due_info = f" | 📅 الموعد: {due_date}" if due_date else ""
-            
-            # استخدام ft.TextStyle لتجنب الخطأ وتطبيق شطب النص عند اكتمال المهمة
+        
             task_card = ft.Card(
                 content=ft.Container(
                     content=ft.Row(
