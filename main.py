@@ -270,19 +270,44 @@ def main(page: ft.Page):
                 load_tasks()
 
             due_info = f" | 📅 الموعد: {due_date}" if due_date else ""
-            chk = ft.Checkbox(
-                label=f"{title}\n🕒 أُضيفت: {created_at}{due_info}",
-                value=bool(done),
-                on_change=on_change,
-            )
             
-            if done:
-                chk.label_style = ft.TextStyle(
-                    decoration=ft.TextDecoration.LINE_THROUGH,
-                    color=ft.Colors.GREY_500
+            # استخدام ft.TextStyle لتجنب الخطأ وتطبيق شطب النص عند اكتمال المهمة
+            task_card = ft.Card(
+                content=ft.Container(
+                    content=ft.Row(
+                        [
+                            ft.Checkbox(
+                                value=bool(done),
+                                on_change=on_change,
+                            ),
+                            ft.Column(
+                                [
+                                    ft.Text(
+                                        title, 
+                                        style=ft.TextStyle(
+                                            size=16, 
+                                            weight=ft.FontWeight.BOLD,
+                                            decoration=ft.TextDecoration.LINE_THROUGH if done else ft.TextDecoration.NONE,
+                                            color=ft.Colors.GREY_500 if done else ft.Colors.BLACK87
+                                        )
+                                    ),
+                                    ft.Text(
+                                        f"🕒 أُضيفت: {created_at}{due_info}", 
+                                        style=ft.TextStyle(size=12, color=ft.Colors.GREY_700)
+                                    ),
+                                ],
+                                alignment=ft.MainAxisAlignment.CENTER,
+                                spacing=2,
+                                expand=True,
+                            ),
+                        ],
+                        alignment=ft.MainAxisAlignment.START,
+                    ),
+                    padding=10,
                 )
+            )
 
-            tasks_list.controls.append(chk)
+            tasks_list.controls.append(task_card)
         page.update()
 
     def add_task(e):
