@@ -13,7 +13,7 @@ try:
 except ImportError:
     HAS_REPORTLAB = False
 
-# محاولة استيراد مكتبة الإشعارات
+# محاولة استيراد مكتبة الإشعارات والصوت
 try:
     from plyer import notification
     HAS_NOTIFICATIONS = True
@@ -63,59 +63,7 @@ def init_db():
 
 init_db()
 
-# --- 2. دالة تصدير ملف الـ PDF ---
-def generate_pdf_report():
-    if not HAS_REPORTLAB:
-        raise Exception("مكتبة reportlab غير مثبتة")
-
-    pdf_filename = "report.pdf"
-    doc = SimpleDocTemplate(pdf_filename, pagesize=letter)
-    elements = []
-    styles = getSampleStyleSheet()
-
-    title_style = ParagraphStyle(
-        'TitleStyle',
-        parent=styles['Heading1'],
-        fontSize=18,
-        alignment=1,
-        spaceAfter=20
-    )
-
-    elements.append(Paragraph("<b>Monazzam Yawmak - Expenses Report</b>", title_style))
-    elements.append(Spacer(1, 10))
-
-    conn = sqlite3.connect("data.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT description, amount, created_at FROM expenses")
-    expenses = cursor.fetchall()
-    conn.close()
-
-    data = [["Description", "Amount", "Date"]]
-    total = 0.0
-    for desc, amt, dt in expenses:
-        total += amt
-        data.append([str(desc), f"{amt:.2f}", str(dt)])
-
-    data.append(["Total Expenses", f"{total:.2f}", ""])
-
-    t = Table(data, colWidths=[200, 100, 150])
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1A73E8")),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor("#F1F3F4")),
-        ('GRID', (0, 0), (-1, -1), 1, colors.white),
-        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor("#E8F0FE")),
-    ]))
-
-    elements.append(t)
-    doc.build(elements)
-    return pdf_filename
-
-# --- 3. واجهة التطبيق الرئيسية ---
+# --- 2. واجهة التطبيق الرئيسية ---
 def main(page: ft.Page):
     page.title = "منظّم يومك"
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -132,6 +80,68 @@ def main(page: ft.Page):
         center_title=True,
         bgcolor=ft.Colors.BLUE_700,
     )
+
+    # متغير لحفظ مسار ملف الـ PDF عبر FilePicker
+    pdf_save_path = {"path": None}
+
+    def on_save_file_result(e: ft.FilePickerResultEvent):
+        if e.path:
+            pdf_save_path["path"] = e.path
+            generate_and_save_pdf(e.path)
+
+    file_picker = ft.FilePicker(on_result=on_save_file_result)
+    page.overlay.append(file_picker)
+
+    def generate_and_save_pdf(filepath):
+        try:
+            doc = SimpleDocTemplate(filepath, pagesize=letter)
+            elements = []
+            styles = getSampleStyleSheet()
+
+            title_style = ParagraphStyle(
+                'TitleStyle',
+                parent=styles['Heading1'],
+                fontSize=18,
+                alignment=1,
+                spaceAfter=20
+            )
+
+            elements.append(Paragraph("<b>Monazzam Yawmak - Expenses Report</b>", title_style))
+            elements.append(Spacer(1, 10))
+
+            conn = sqlite3.connect("data.db")
+            cursor = conn.cursor()
+            cursor.execute("SELECT description, amount, created_at FROM expenses")
+            expenses = cursor.fetchall()
+            conn.close()
+
+            data = [["Description", "Amount", "Date"]]
+            total = 0.0
+            for desc, amt, dt in expenses:
+                total += amt
+                data.append([str(desc), f"{amt:.2f}", str(dt)])
+
+            data.append(["Total Expenses", f"{total:.2f}", ""])
+
+            t = Table(data, colWidths=[200, 100, 150])
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1A73E8")),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor("#F1F3F4")),
+                ('GRID', (0, 0), (-1, -1), 1, colors.white),
+                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor("#E8F0FE")),
+            ]))
+
+            elements.append(t)
+            doc.build(elements)
+            pdf_status.value = f"✅ تم حفظ التقرير بنجاح في: {filepath}"
+        except Exception as ex:
+            pdf_status.value = f"❌ خطأ أثناء الحفظ: {str(ex)}"
+        page.update()
 
     # --- أ) الشاشة الترحيبية ---
     def enter_app(e):
@@ -193,7 +203,7 @@ def main(page: ft.Page):
         expand=True,
     )
 
-    # --- ب) واجهة المهام مع منتقي التاريخ والوقت بالعربي ---
+    # --- ب) واجهة المهام مع ميزة التعديل ومنتقي التاريخ والوقت ---
     tasks_list = ft.Column()
     task_input = ft.TextField(hint_text="أدخل مهمة جديدة...", expand=True)
     
@@ -224,22 +234,9 @@ def main(page: ft.Page):
             time_button_text.value = f"⏰ {selected_time_str['time']}"
             page.update()
 
-    # إعداد منتقي التاريخ والوقت
-    date_picker = ft.DatePicker(
-        on_change=on_date_change,
-        confirm_text="موافق",
-        cancel_text="إلغاء",
-        help_text="اختر تاريخ المهمة",
-    )
-    time_picker = ft.TimePicker(
-        on_change=on_time_change,
-        confirm_text="موافق",
-        cancel_text="إلغاء",
-        help_text="اختر وقت المهمة",
-    )
-
-    page.overlay.append(date_picker)
-    page.overlay.append(time_picker)
+    date_picker = ft.DatePicker(on_change=on_date_change, confirm_text="موافق", cancel_text="إلغاء")
+    time_picker = ft.TimePicker(on_change=on_time_change, confirm_text="موافق", cancel_text="إلغاء")
+    page.overlay.extend([date_picker, time_picker])
 
     def open_date_picker(e):
         date_picker.open = True
@@ -248,6 +245,30 @@ def main(page: ft.Page):
     def open_time_picker(e):
         time_picker.open = True
         page.update()
+
+    # نافذة منبثقة لتعديل المهمة
+    edit_task_id = {"id": None}
+    edit_input = ft.TextField(label="تعديل نص المهمة")
+
+    def save_edited_task(e):
+        if edit_task_id["id"] and edit_input.value.strip():
+            conn = sqlite3.connect("data.db")
+            cur = conn.cursor()
+            cur.execute("UPDATE tasks SET title = ? WHERE id = ?", (edit_input.value.strip(), edit_task_id["id"]))
+            conn.commit()
+            conn.close()
+            edit_dlg.open = False
+            load_tasks()
+
+    edit_dlg = ft.AlertDialog(
+        title=ft.Text("تعديل المهمة"),
+        content=edit_input,
+        actions=[
+            ft.TextButton("حفظ", on_click=save_edited_task),
+            ft.TextButton("إلغاء", on_click=lambda e: setattr(edit_dlg, 'open', False) or page.update())
+        ]
+    )
+    page.overlay.append(edit_dlg)
 
     def load_tasks():
         tasks_list.controls.clear()
@@ -269,16 +290,27 @@ def main(page: ft.Page):
                 c.close()
                 load_tasks()
 
+            def open_edit(e, tid=task_id, t_title=title):
+                edit_task_id["id"] = tid
+                edit_input.value = t_title
+                edit_dlg.open = True
+                page.update()
+
+            def delete_task(e, tid=task_id):
+                c = sqlite3.connect("data.db")
+                cur = c.cursor()
+                cur.execute("DELETE FROM tasks WHERE id = ?", (tid,))
+                c.commit()
+                c.close()
+                load_tasks()
+
             due_info = f" | 📅 الموعد: {due_date}" if due_date else ""
-        
+            
             task_card = ft.Card(
                 content=ft.Container(
                     content=ft.Row(
                         [
-                            ft.Checkbox(
-                                value=bool(done),
-                                on_change=on_change,
-                            ),
+                            ft.Checkbox(value=bool(done), on_change=on_change),
                             ft.Column(
                                 [
                                     ft.Text(
@@ -299,13 +331,14 @@ def main(page: ft.Page):
                                 spacing=2,
                                 expand=True,
                             ),
+                            ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=ft.Colors.BLUE, on_click=open_edit),
+                            ft.IconButton(icon=ft.Icons.DELETE, icon_size=18, icon_color=ft.Colors.RED, on_click=delete_task),
                         ],
                         alignment=ft.MainAxisAlignment.START,
                     ),
                     padding=10,
                 )
             )
-
             tasks_list.controls.append(task_card)
         page.update()
 
@@ -365,7 +398,7 @@ def main(page: ft.Page):
         padding=10
     )
 
-    # --- ج) واجهة المصروفات والتصدير ---
+    # --- ج) واجهة المصروفات والتصدير عبر FilePicker ---
     expenses_list = ft.Column()
     expense_desc = ft.TextField(hint_text="وصف المصروف", expand=True)
     expense_amount = ft.TextField(hint_text="المبلغ", width=100, keyboard_type=ft.KeyboardType.NUMBER)
@@ -415,11 +448,11 @@ def main(page: ft.Page):
 
     def export_pdf(e):
         try:
-            filename = generate_pdf_report()
-            pdf_status.value = f"✅ تم تصدير التقرير بنجاح: {filename}"
+            # تفعيل نافذة اختيار مكان الحفظ في ملفات الجهاز/الهاتف
+            file_picker.save_file(dialog_title="حفظ تقرير المصروفات", file_name="expenses_report.pdf", allowed_extensions=["pdf"])
         except Exception as ex:
-            pdf_status.value = "❌ تأكد من تثبيت مكتبة reportlab (pip install reportlab)"
-        page.update()
+            pdf_status.value = "❌ تأكد من تثبيت مكتبة reportlab"
+            page.update()
 
     expenses_view = ft.Container(
         content=ft.Column([
@@ -466,7 +499,6 @@ def main(page: ft.Page):
     )
 
     page.add(welcome_screen, main_layout)
-
     load_tasks()
     load_expenses()
 
