@@ -35,7 +35,7 @@ init_db()
 
 # --- 2. واجهة التطبيق الرئيسية ---
 def main(page: ft.Page):
-    page.title = "منظّم يومك"
+    page.title = "TaskExpenseApp"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 10
     page.rtl = True
@@ -44,14 +44,9 @@ def main(page: ft.Page):
         current_locale=ft.Locale("ar")
     )
 
-    # شريط علوي مخصص ومُموّسَط
-    page.appbar = ft.AppBar(
-        title=ft.Text("منظّم يومك 🎯", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-        center_title=True,
-        bgcolor=ft.Colors.BLUE_700,
-    )
+    # إزالة الـ AppBar الافتراضي ليكون التصميم مطابقاً للصورة تماماً
+    page.appbar = None
 
-    # دالة لإظهار تنبيه مرئي داخل التطبيق بدلاً من إشعارات النظام المعطلة
     def show_snack(message, is_error=False):
         page.snack_bar = ft.SnackBar(
             content=ft.Text(message, color=ft.Colors.WHITE),
@@ -92,15 +87,35 @@ def main(page: ft.Page):
         expand=True,
     )
 
-    # --- ب) واجهة المهام مع دعم السحب الكامل (Scrollable) ---
+    # عناصر الإحصائيات العلوية
+    total_expenses_card_text = ft.Text("0.00 $", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_500)
+    remaining_tasks_card_text = ft.Text("0", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
+
+    def update_stats():
+        conn = sqlite3.connect("data.db")
+        cur = conn.cursor()
+        cur.execute("SELECT SUM(amount) FROM expenses")
+        res_exp = cur.fetchone()[0]
+        total_exp = res_exp if res_exp else 0.0
+
+        cur.execute("SELECT COUNT(*) FROM tasks WHERE done = 0")
+        res_tasks = cur.fetchone()[0]
+        rem_tasks = res_tasks if res_tasks else 0
+        conn.close()
+
+        total_expenses_card_text.value = f"{total_exp:.2f} $"
+        remaining_tasks_card_text.value = str(rem_tasks)
+        page.update()
+
+    # --- ب) واجهة المهام ---
     tasks_list = ft.Column(spacing=8)
-    task_input = ft.TextField(hint_text="أدخل مهمة جديدة...", expand=True)
+    task_input = ft.TextField(hint_text="أدخل مهمة جديدة...", expand=True, border_radius=10)
     
     selected_date_str = {"date": ""}
     selected_time_str = {"time": ""}
 
-    date_button_text = ft.Text("اختر التاريخ", size=12)
-    time_button_text = ft.Text("اختر الوقت", size=12)
+    date_button_text = ft.Text("التاريخ", size=12)
+    time_button_text = ft.Text("الوقت", size=12)
 
     def on_date_change(e):
         if date_picker.value:
@@ -135,7 +150,6 @@ def main(page: ft.Page):
         time_picker.open = True
         page.update()
 
-    # نافذة تعديل المهمة
     edit_task_id = {"id": None}
     edit_task_input = ft.TextField(label="تعديل نص المهمة")
 
@@ -213,14 +227,14 @@ def main(page: ft.Page):
                                             color=ft.Colors.GREY_500 if done else ft.Colors.BLACK87
                                         )
                                     ),
-                                    ft.Text(f"🕒 أُضيفت: {created_at}{due_info}", style=ft.TextStyle(size=12, color=ft.Colors.GREY_700)),
+                                    ft.Text(f"🕒 {created_at}{due_info}", style=ft.TextStyle(size=12, color=ft.Colors.GREY_700)),
                                 ],
                                 alignment=ft.MainAxisAlignment.CENTER,
                                 spacing=2,
                                 expand=True,
                             ),
                             ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=ft.Colors.BLUE, on_click=open_edit_task),
-                            ft.IconButton(icon=ft.Icons.DELETE, icon_size=18, icon_color=ft.Colors.RED, on_click=delete_task_item),
+                            ft.TextButton("حذف", on_click=delete_task_item, style=ft.ButtonStyle(color=ft.Colors.RED_500)),
                         ],
                         alignment=ft.MainAxisAlignment.START,
                     ),
@@ -228,6 +242,7 @@ def main(page: ft.Page):
                 )
             )
             tasks_list.controls.append(task_card)
+        update_stats()
         page.update()
 
     def add_task(e):
@@ -250,41 +265,28 @@ def main(page: ft.Page):
             task_input.value = ""
             selected_date_str["date"] = ""
             selected_time_str["time"] = ""
-            date_button_text.value = "اختر التاريخ"
-            time_button_text.value = "اختر الوقت"
+            date_button_text.value = "التاريخ"
+            time_button_text.value = "الوقت"
             load_tasks()
             show_snack(f"📌 تمت إضافة المهمة بنجاح!")
 
-    # جعل شاشة المهام قابلة للسحب بالكامل عبر scroll=ft.ScrollMode.AUTO
-    tasks_view = ft.Container(
-        content=ft.Column([
-            ft.Text("📋 قائمة المهام اليومية", size=18, weight=ft.FontWeight.BOLD),
-            ft.Row([
-                task_input,
-                ft.FloatingActionButton(icon=ft.Icons.ADD, on_click=add_task)
-            ]),
-            ft.Row([
-                ft.OutlinedButton(
-                    content=ft.Row([ft.Icon(ft.Icons.CALENDAR_MONTH, size=16), date_button_text]),
-                    on_click=open_date_picker
-                ),
-                ft.OutlinedButton(
-                    content=ft.Row([ft.Icon(ft.Icons.ACCESS_TIME, size=16), time_button_text]),
-                    on_click=open_time_picker
-                ),
-            ]),
-            ft.Divider(),
-            tasks_list
-        ], scroll=ft.ScrollMode.AUTO, expand=True),
-        padding=10,
-        expand=True
-    )
+    tasks_view_container = ft.Column([
+        ft.Row([
+            task_input,
+            ft.ElevatedButton("إضافة", on_click=add_task, bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE)
+        ]),
+        ft.Row([
+            ft.OutlinedButton(content=date_button_text, on_click=open_date_picker),
+            ft.OutlinedButton(content=time_button_text, on_click=open_time_picker),
+        ]),
+        ft.Divider(),
+        tasks_list
+    ])
 
-    # --- ج) واجهة المصروفات (بدون PDF وبدعم السحب) ---
+    # --- ج) واجهة المصروفات ---
     expenses_list = ft.Column(spacing=8)
-    expense_desc = ft.TextField(hint_text="وصف المصروف", expand=True)
-    expense_amount = ft.TextField(hint_text="المبلغ", width=100, keyboard_type=ft.KeyboardType.NUMBER)
-    total_text = ft.Text("الإجمالي: 0 ريال", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
+    expense_desc = ft.TextField(hint_text="اسم المصروف...", expand=True, border_radius=10)
+    expense_amount = ft.TextField(hint_text="المبلغ", width=100, keyboard_type=ft.KeyboardType.NUMBER, border_radius=10)
 
     edit_expense_id = {"id": None}
     edit_exp_desc = ft.TextField(label="تعديل الوصف")
@@ -323,10 +325,8 @@ def main(page: ft.Page):
         rows = cursor.fetchall()
         conn.close()
 
-        total = 0.0
         for row in rows:
             exp_id, desc, amt, created_at = row
-            total += amt
 
             def open_edit_exp(e, eid=exp_id, d=desc, a=amt):
                 edit_expense_id["id"] = eid
@@ -349,7 +349,7 @@ def main(page: ft.Page):
                     content=ft.Container(
                         content=ft.Row(
                             [
-                                ft.Icon(ft.Icons.MONEY_OFF, color=ft.Colors.RED_400),
+                                ft.Icon(ft.Icons.MONEY, color=ft.Colors.GREEN_600),
                                 ft.Column(
                                     [
                                         ft.Text(desc, size=15, weight=ft.FontWeight.BOLD),
@@ -358,9 +358,9 @@ def main(page: ft.Page):
                                     expand=True,
                                     spacing=2,
                                 ),
-                                ft.Text(f"{amt:.2f} ريال", weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_800),
+                                ft.Text(f"{amt:.2f} $", weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_800),
                                 ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=ft.Colors.BLUE, on_click=open_edit_exp),
-                                ft.IconButton(icon=ft.Icons.DELETE, icon_size=18, icon_color=ft.Colors.RED, on_click=delete_expense_item),
+                                ft.TextButton("حذف", on_click=delete_expense_item, style=ft.ButtonStyle(color=ft.Colors.RED_500)),
                             ],
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         ),
@@ -368,7 +368,7 @@ def main(page: ft.Page):
                     )
                 )
             )
-        total_text.value = f"الإجمالي: {total:.2f} ريال"
+        update_stats()
         page.update()
 
     def add_expense(e):
@@ -391,43 +391,84 @@ def main(page: ft.Page):
             except ValueError:
                 pass
 
-    expenses_view = ft.Container(
-        content=ft.Column([
-            ft.Text("💰 المصروفات اليومية", size=18, weight=ft.FontWeight.BOLD),
-            ft.Row([
-                expense_desc,
-                expense_amount,
-            ]),
-            ft.ElevatedButton("إضافة مصروف", icon=ft.Icons.ATTACH_MONEY, on_click=add_expense),
-            ft.Divider(),
-            total_text,
-            expenses_list
-        ], scroll=ft.ScrollMode.AUTO, expand=True),
-        padding=10,
-        expand=True
-    )
+    expenses_view_container = ft.Column([
+        ft.Row([
+            expense_desc,
+            expense_amount,
+            ft.ElevatedButton("إضافة", on_click=add_expense, bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE)
+        ]),
+        ft.Divider(),
+        expenses_list
+    ])
 
-    # --- د) التنقل بين الأقسام ---
-    content_area = ft.Container(content=tasks_view, expand=True)
+    # --- د) إدارة التبديل بين الأقسام (مهام / مصروفات) وطابق الشكل ---
+    content_area = ft.Container(content=tasks_view_container, expand=True)
 
-    def show_tasks(e):
-        content_area.content = tasks_view
+    btn_task = ft.OutlinedButton("مهمه 📝", style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20)))
+    btn_expense = ft.ElevatedButton("مصروف 💵", bgcolor=ft.Colors.BLUE_700, color=ft.Colors.WHITE, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20)))
+
+    def show_tasks_tab(e):
+        btn_task.bgcolor = ft.Colors.BLUE_700
+        btn_task.color = ft.Colors.WHITE
+        btn_expense.bgcolor = None
+        btn_expense.color = ft.Colors.BLACK
+        content_area.content = tasks_view_container
         page.update()
 
-    def show_expenses(e):
-        content_area.content = expenses_view
+    def show_expenses_tab(e):
+        btn_expense.bgcolor = ft.Colors.BLUE_700
+        btn_expense.color = ft.Colors.WHITE
+        btn_task.bgcolor = None
+        btn_task.color = ft.Colors.BLACK
+        content_area.content = expenses_view_container
         page.update()
 
-    nav_bar = ft.Row([
-        ft.OutlinedButton("📋 المهام", on_click=show_tasks),
-        ft.OutlinedButton("💰 المصروفات", on_click=show_expenses),
-    ], alignment=ft.MainAxisAlignment.CENTER)
+    btn_task.on_click = show_tasks_tab
+    btn_expense.on_click = show_expenses_tab
 
+    # جعل الواجهة الرئيسية قابلة للتمرير بالكامل (Scrollable) لمنع مشكلة توقف الشاشة
     main_layout = ft.Column(
         [
-            nav_bar,
-            content_area,
+            # العنوان العلوي المطابق للصورة
+            ft.Row([
+                ft.Text("TaskExpenseApp", size=22, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900),
+                ft.Icon(ft.Icons.BAR_CHART, color=ft.Colors.BLUE_600)
+            ], alignment=ft.MainAxisAlignment.CENTER),
+            
+            # بطاقات الإحصائيات العلوية تماماً كالصورة
+            ft.Row([
+                ft.Card(
+                    content=ft.Container(
+                        content=ft.Column([
+                            ft.Text("إجمالي المصاريف", size=12, color=ft.Colors.GREY_700),
+                            total_expenses_card_text
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                        padding=15, width=160
+                    )
+                ),
+                ft.Card(
+                    content=ft.Container(
+                        content=ft.Column([
+                            ft.Text("المهام المتبقية", size=12, color=ft.Colors.GREY_700),
+                            remaining_tasks_card_text
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                        padding=15, width=160
+                    )
+                ),
+            ], alignment=ft.MainAxisAlignment.CENTER),
+
+            # أزرار التبديل (مهمه / مصروف)
+            ft.Row([
+                btn_expense,
+                btn_task,
+            ], alignment=ft.MainAxisAlignment.CENTER),
+
+            ft.Divider(),
+            
+            # منطقة المحتوى المتغيرة (قابلة للتمرير لمنع توقف الشاشة عند زيادة المهام)
+            content_area
         ],
+        scroll=ft.ScrollMode.AUTO,
         expand=True,
         visible=False,
     )
