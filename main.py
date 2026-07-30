@@ -1,36 +1,6 @@
 import flet as ft
 import sqlite3
 from datetime import datetime
-import os
-
-# استيراد مكتبة إنشاء الـ PDF
-try:
-    from reportlab.lib.pagesizes import letter
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib import colors
-    HAS_REPORTLAB = True
-except ImportError:
-    HAS_REPORTLAB = False
-
-# محاولة استيراد مكتبة الإشعارات والصوت
-try:
-    from plyer import notification
-    HAS_NOTIFICATIONS = True
-except ImportError:
-    HAS_NOTIFICATIONS = False
-
-def send_task_notification(title, message):
-    if HAS_NOTIFICATIONS:
-        try:
-            notification.notify(
-                title=title,
-                message=message,
-                app_name="منظّم يومك",
-                timeout=10
-            )
-        except Exception:
-            pass
 
 # --- 1. إعداد قاعدة البيانات ---
 def init_db():
@@ -81,66 +51,13 @@ def main(page: ft.Page):
         bgcolor=ft.Colors.BLUE_700,
     )
 
-    pdf_status = ft.Text("", size=14, color=ft.Colors.BLUE_700)
-
-    # دالة تصدير وإنشاء الـ PDF مباشرة (متوافقة مع الهواتف)
-    def export_pdf_direct(e):
-        try:
-            if os.name == 'nt':
-                filepath = "expenses_report.pdf"
-            else:
-                filepath = os.path.join(page.get_storage_dir() if hasattr(page, 'get_storage_dir') else ".", "expenses_report.pdf")
-            
-            if not filepath or filepath == "expenses_report.pdf":
-                filepath = "expenses_report.pdf"
-
-            doc = SimpleDocTemplate(filepath, pagesize=letter)
-            elements = []
-            styles = getSampleStyleSheet()
-
-            title_style = ParagraphStyle(
-                'TitleStyle',
-                parent=styles['Heading1'],
-                fontSize=18,
-                alignment=1,
-                spaceAfter=20
-            )
-
-            elements.append(Paragraph("<b>Monazzam Yawmak - Expenses Report</b>", title_style))
-            elements.append(Spacer(1, 10))
-
-            conn = sqlite3.connect("data.db")
-            cursor = conn.cursor()
-            cursor.execute("SELECT description, amount, created_at FROM expenses")
-            expenses = cursor.fetchall()
-            conn.close()
-
-            data = [["Description", "Amount", "Date"]]
-            total = 0.0
-            for desc, amt, dt in expenses:
-                total += amt
-                data.append([str(desc), f"{amt:.2f}", str(dt)])
-
-            data.append(["Total Expenses", f"{total:.2f}", ""])
-
-            t = Table(data, colWidths=[200, 100, 150])
-            t.setStyle(TableStyle([
-                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1A73E8")),
-                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-                ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor("#F1F3F4")),
-                ('GRID', (0, 0), (-1, -1), 1, colors.white),
-                ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
-                ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor("#E8F0FE")),
-            ]))
-
-            elements.append(t)
-            doc.build(elements)
-            pdf_status.value = f"✅ تم حفظ التقرير بنجاح!"
-        except Exception as ex:
-            pdf_status.value = f"❌ خطأ أثناء الحفظ: {str(ex)}"
+    # دالة لإظهار تنبيه مرئي داخل التطبيق بدلاً من إشعارات النظام المعطلة
+    def show_snack(message, is_error=False):
+        page.snack_bar = ft.SnackBar(
+            content=ft.Text(message, color=ft.Colors.WHITE),
+            bgcolor=ft.Colors.RED_700 if is_error else ft.Colors.GREEN_700
+        )
+        page.snack_bar.open = True
         page.update()
 
     # --- أ) الشاشة الترحيبية ---
@@ -153,47 +70,19 @@ def main(page: ft.Page):
         content=ft.Column(
             [
                 ft.Icon(ft.Icons.DASHBOARD_CUSTOMIZE_ROUNDED, size=80, color=ft.Colors.BLUE_700),
-                ft.Text(
-                    "مرحباً بك 👋",
-                    size=28,
-                    weight=ft.FontWeight.BOLD,
-                    color=ft.Colors.BLUE_900,
-                    text_align=ft.TextAlign.CENTER,
-                ),
-                ft.Text(
-                    "تطبيق منظّم يومك",
-                    size=20,
-                    weight=ft.FontWeight.BOLD,
-                    color=ft.Colors.GREY_800,
-                    text_align=ft.TextAlign.CENTER,
-                ),
+                ft.Text("مرحباً بك 👋", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900, text_align=ft.TextAlign.CENTER),
+                ft.Text("تطبيق منظّم يومك", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_800, text_align=ft.TextAlign.CENTER),
                 ft.Container(
-                    content=ft.Text(
-                        "تصميم وتطوير: حكيم محفوظ",
-                        size=14,
-                        weight=ft.FontWeight.BOLD,
-                        color=ft.Colors.BLUE_600,
-                    ),
-                    padding=8,
-                    border_radius=10,
-                    bgcolor=ft.Colors.BLUE_50,
+                    content=ft.Text("تصميم وتطوير: حكيم محفوظ", size=14, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_600),
+                    padding=8, border_radius=10, bgcolor=ft.Colors.BLUE_50,
                 ),
                 ft.Divider(height=15, color=ft.Colors.TRANSPARENT),
-                ft.Text(
-                    "« تنظيم يومك هو أول خطوات نجاحك »",
-                    size=13,
-                    italic=True,
-                    color=ft.Colors.GREY_600,
-                    text_align=ft.TextAlign.CENTER,
-                ),
+                ft.Text("« تنظيم يومك هو أول خطوات نجاحك »", size=13, italic=True, color=ft.Colors.GREY_600, text_align=ft.TextAlign.CENTER),
                 ft.Divider(height=25, color=ft.Colors.TRANSPARENT),
                 ft.ElevatedButton(
                     "الدخول للتطبيق 🚀",
                     on_click=enter_app,
-                    style=ft.ButtonStyle(
-                        padding=20,
-                        shape=ft.RoundedRectangleBorder(radius=12),
-                    ),
+                    style=ft.ButtonStyle(padding=20, shape=ft.RoundedRectangleBorder(radius=12)),
                 ),
             ],
             alignment=ft.MainAxisAlignment.CENTER,
@@ -203,8 +92,8 @@ def main(page: ft.Page):
         expand=True,
     )
 
-    # --- ب) واجهة المهام مع ميزة التعديل والحذف ---
-    tasks_list = ft.Column()
+    # --- ب) واجهة المهام مع دعم السحب الكامل (Scrollable) ---
+    tasks_list = ft.Column(spacing=8)
     task_input = ft.TextField(hint_text="أدخل مهمة جديدة...", expand=True)
     
     selected_date_str = {"date": ""}
@@ -246,7 +135,7 @@ def main(page: ft.Page):
         time_picker.open = True
         page.update()
 
-    # نافذة منبثقة لتعديل المهمة
+    # نافذة تعديل المهمة
     edit_task_id = {"id": None}
     edit_task_input = ft.TextField(label="تعديل نص المهمة")
 
@@ -259,6 +148,7 @@ def main(page: ft.Page):
             conn.close()
             edit_task_dlg.open = False
             load_tasks()
+            show_snack("تم تعديل المهمة بنجاح ✅")
 
     edit_task_dlg = ft.AlertDialog(
         title=ft.Text("تعديل المهمة"),
@@ -303,6 +193,7 @@ def main(page: ft.Page):
                 c.commit()
                 c.close()
                 load_tasks()
+                show_snack("تم حذف المهمة بنجاح")
 
             due_info = f" | 📅 الموعد: {due_date}" if due_date else ""
             
@@ -322,10 +213,7 @@ def main(page: ft.Page):
                                             color=ft.Colors.GREY_500 if done else ft.Colors.BLACK87
                                         )
                                     ),
-                                    ft.Text(
-                                        f"🕒 أُضيفت: {created_at}{due_info}", 
-                                        style=ft.TextStyle(size=12, color=ft.Colors.GREY_700)
-                                    ),
+                                    ft.Text(f"🕒 أُضيفت: {created_at}{due_info}", style=ft.TextStyle(size=12, color=ft.Colors.GREY_700)),
                                 ],
                                 alignment=ft.MainAxisAlignment.CENTER,
                                 spacing=2,
@@ -359,22 +247,15 @@ def main(page: ft.Page):
             conn.commit()
             conn.close()
 
-            notification_msg = f"تم تسجيل المهمة: '{title}'"
-            if due_date_str:
-                notification_msg += f" (الموعد: {due_date_str})"
-
-            send_task_notification(
-                title="تذكير بمهمة جديدة 📌",
-                message=notification_msg
-            )
-
             task_input.value = ""
             selected_date_str["date"] = ""
             selected_time_str["time"] = ""
             date_button_text.value = "اختر التاريخ"
             time_button_text.value = "اختر الوقت"
             load_tasks()
+            show_snack(f"📌 تمت إضافة المهمة بنجاح!")
 
+    # جعل شاشة المهام قابلة للسحب بالكامل عبر scroll=ft.ScrollMode.AUTO
     tasks_view = ft.Container(
         content=ft.Column([
             ft.Text("📋 قائمة المهام اليومية", size=18, weight=ft.FontWeight.BOLD),
@@ -394,17 +275,17 @@ def main(page: ft.Page):
             ]),
             ft.Divider(),
             tasks_list
-        ]),
-        padding=10
+        ], scroll=ft.ScrollMode.AUTO, expand=True),
+        padding=10,
+        expand=True
     )
 
-    # --- ج) واجهة المصروفات مع ميزة التعديل والحذف ---
-    expenses_list = ft.Column()
+    # --- ج) واجهة المصروفات (بدون PDF وبدعم السحب) ---
+    expenses_list = ft.Column(spacing=8)
     expense_desc = ft.TextField(hint_text="وصف المصروف", expand=True)
     expense_amount = ft.TextField(hint_text="المبلغ", width=100, keyboard_type=ft.KeyboardType.NUMBER)
     total_text = ft.Text("الإجمالي: 0 ريال", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_700)
 
-    # نافذة منبثقة لتعديل المصروف
     edit_expense_id = {"id": None}
     edit_exp_desc = ft.TextField(label="تعديل الوصف")
     edit_exp_amt = ft.TextField(label="تعديل المبلغ", keyboard_type=ft.KeyboardType.NUMBER)
@@ -420,6 +301,7 @@ def main(page: ft.Page):
                 conn.close()
                 edit_expense_dlg.open = False
                 load_expenses()
+                show_snack("تم تعديل المصروف بنجاح ✅")
             except ValueError:
                 pass
 
@@ -460,6 +342,7 @@ def main(page: ft.Page):
                 c.commit()
                 c.close()
                 load_expenses()
+                show_snack("تم حذف المصروف")
 
             expenses_list.controls.append(
                 ft.Card(
@@ -504,6 +387,7 @@ def main(page: ft.Page):
                 expense_desc.value = ""
                 expense_amount.value = ""
                 load_expenses()
+                show_snack("💰 تمت إضافة المصروف بنجاح")
             except ValueError:
                 pass
 
@@ -514,16 +398,13 @@ def main(page: ft.Page):
                 expense_desc,
                 expense_amount,
             ]),
-            ft.Row([
-                ft.ElevatedButton("إضافة مصروف", icon=ft.Icons.ATTACH_MONEY, on_click=add_expense),
-                ft.ElevatedButton("تصدير تقرير PDF", icon=ft.Icons.PICTURE_AS_PDF, on_click=export_pdf_direct),
-            ]),
-            pdf_status,
+            ft.ElevatedButton("إضافة مصروف", icon=ft.Icons.ATTACH_MONEY, on_click=add_expense),
             ft.Divider(),
             total_text,
             expenses_list
-        ]),
-        padding=10
+        ], scroll=ft.ScrollMode.AUTO, expand=True),
+        padding=10,
+        expand=True
     )
 
     # --- د) التنقل بين الأقسام ---
