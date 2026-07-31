@@ -207,7 +207,7 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ في النسخ الاحتياطي: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
-    async def restore_database(e):
+    def restore_database(e):
         try:
             def on_file_picked(e: ft.FilePickerResultEvent):
                 if e.files and len(e.files) > 0:
@@ -733,4 +733,5 @@ def main(page: ft.Page):
     load_tasks()
     load_expenses()
 
-ft.run(main)
+if __name__ == "__main__":
+    ft.app(target=main)
