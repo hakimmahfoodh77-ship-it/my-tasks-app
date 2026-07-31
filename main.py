@@ -60,7 +60,7 @@ def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 10
     page.rtl = True
-    page.locale_configuration = ft.LocaleConfiguration(
+    page.locale_configuration = ft.Locale_configuration = ft.LocaleConfiguration(
         supported_locales=[ft.Locale("ar")],
         current_locale=ft.Locale("ar")
     )
@@ -90,7 +90,7 @@ def main(page: ft.Page):
         refresh_all_views()
         page.update()
 
-    # زر الإعدادات في أقصى اليمين في شريط التطبيق العلوي
+    # زر الإعدادات في أقصى اليمين (نظراً لأن التطبيق RTL، فإن أول عنصر في actions يظهر في أقصى اليمين)
     settings_top_btn = ft.IconButton(
         icon=ft.Icons.SETTINGS,
         icon_color=ft.Colors.WHITE,
@@ -98,7 +98,7 @@ def main(page: ft.Page):
         on_click=lambda e: show_settings_tab(None)
     )
 
-    # شريط التطبيق العلوي يحتوي على زر الإعدادات فقط (تمت إزالة زر الوضع الليلي من هنا)
+    # شريط التطبيق العلوي مع وضع زر الإعدادات في أقصى اليمين
     page.appbar = ft.AppBar(
         title=ft.Text("منظّم يومك الاحترافي 🎯", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
         center_title=True,
@@ -217,7 +217,7 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ أثناء التصدير: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
-    # --- قسم التحليلات والرسوم البيانية (الآمن) ---
+    # --- قسم التحليلات والرسوم البيانية ---
     analytics_content = ft.Column(spacing=15)
 
     def load_analytics():
@@ -669,7 +669,7 @@ def main(page: ft.Page):
         padding=5
     )
 
-    # --- شاشة الإعدادات المخصصة (مع زر التحكم بالوضع الليلي/النهاري) ---
+    # --- شاشة الإعدادات المخصصة (تمت إزالة زر الوضع الليلي من هنا وأصبح متاحاً في الإعدادات فقط) ---
     def clear_all_data(e):
         conn = sqlite3.connect("data.db")
         cur = conn.cursor()
