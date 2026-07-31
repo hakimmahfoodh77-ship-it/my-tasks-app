@@ -147,7 +147,7 @@ def main(page: ft.Page):
 
     content_area = ft.Container(content=None, expand=True)
 
-    # أزرار التنقل السفلية (أصبحت تتضمن 3 أقسام رئيسية فقط: المهام، المصروفات، التحليلات)
+    # أزرار التنقل السفلية
     btn_tasks_tab = ft.ElevatedButton(
         content=ft.Text("📋 المهام", color=ft.Colors.WHITE),
         bgcolor=ft.Colors.BLUE_700,
@@ -192,7 +192,6 @@ def main(page: ft.Page):
         page.update()
 
     def show_settings_screen(e):
-        # إلغاء تمييز الأزرار السفلية عند الانتقال للإعدادات عبر الزر العلوي
         for b in [btn_tasks_tab, btn_expenses_tab, btn_analytics_tab]:
             b.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
             b.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
@@ -203,7 +202,7 @@ def main(page: ft.Page):
     btn_expenses_tab.on_click = show_expenses_tab
     btn_analytics_tab.on_click = show_analytics_tab
 
-    # --- وضع زر الإعدادات في المكان الذي أشرت إليه تماماً (أقصى اليمين العلوي في الـ AppBar) ---
+    # زر الإعدادات في أقصى اليمين العلوي للـ AppBar
     page.appbar = ft.AppBar(
         title=ft.Text("منظّم يومك الاحترافي 🎯", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
         center_title=True,
