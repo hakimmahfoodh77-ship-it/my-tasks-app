@@ -60,7 +60,7 @@ def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 10
     page.rtl = True
-    page.locale_configuration = ft.Locale_configuration = ft.LocaleConfiguration(
+    page.locale_configuration = ft.LocaleConfiguration(
         supported_locales=[ft.Locale("ar")],
         current_locale=ft.Locale("ar")
     )
@@ -90,20 +90,132 @@ def main(page: ft.Page):
         refresh_all_views()
         page.update()
 
-    # زر الإعدادات في أقصى اليمين (نظراً لأن التطبيق RTL، فإن أول عنصر في actions يظهر في أقصى اليمين)
-    settings_top_btn = ft.IconButton(
-        icon=ft.Icons.SETTINGS,
-        icon_color=ft.Colors.WHITE,
-        tooltip="الإعدادات",
-        on_click=lambda e: show_settings_tab(None)
+    # محتوى شاشة الإعدادات
+    def clear_all_data(e):
+        conn = sqlite3.connect("data.db")
+        cur = conn.cursor()
+        cur.execute("DELETE FROM tasks")
+        cur.execute("DELETE FROM expenses")
+        conn.commit()
+        conn.close()
+        load_tasks()
+        load_expenses()
+        load_analytics()
+        show_snack("تم مسح كافة البيانات بنجاح", icon=ft.Icons.WARNING, is_error=True)
+
+    settings_view_container = ft.Container(
+        content=ft.Column([
+            ft.Text("⚙️ إعدادات التطبيق", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700),
+            ft.Divider(height=10),
+            ft.Card(
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Text("المظهر والوضع", weight=ft.FontWeight.BOLD),
+                        ft.Row([
+                            ft.Text("الوضع الليلي / النهاري"),
+                            ft.Switch(value=page.theme_mode == ft.ThemeMode.DARK, on_change=toggle_theme)
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+                    ]),
+                    padding=15
+                )
+            ),
+            ft.Card(
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Text("إدارة البيانات", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600),
+                        ft.Text("حذف جميع المهام والمصروفات المسجلة نهائياً.", size=12, color=ft.Colors.GREY_600),
+                        ft.Divider(height=5),
+                        ft.ElevatedButton(content=ft.Text("مسح كافة البيانات 🗑️", color=ft.Colors.WHITE), on_click=clear_all_data, bgcolor=ft.Colors.RED_600)
+                    ], spacing=8),
+                    padding=15
+                )
+            ),
+            ft.Card(
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Text("حول التطبيق", weight=ft.FontWeight.BOLD),
+                        ft.Text("منظّم يومك الاحترافي - الإصدار الثالث الشامل."),
+                        ft.Text("تم البرمجة والتطوير بواسطة: حكيم محفوظ 💻", size=12, color=ft.Colors.BLUE_600)
+                    ], spacing=5),
+                    padding=15
+                )
+            )
+        ], spacing=15, scroll=ft.ScrollMode.AUTO),
+        padding=5,
+        expand=True
     )
 
-    # شريط التطبيق العلوي مع وضع زر الإعدادات في أقصى اليمين
+    content_area = ft.Container(content=None, expand=True)
+
+    # أزرار التنقل السفلية (أصبحت تتضمن 3 أقسام رئيسية فقط: المهام، المصروفات، التحليلات)
+    btn_tasks_tab = ft.ElevatedButton(
+        content=ft.Text("📋 المهام", color=ft.Colors.WHITE),
+        bgcolor=ft.Colors.BLUE_700,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
+    )
+    
+    btn_expenses_tab = ft.ElevatedButton(
+        content=ft.Text("💰 المصروفات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
+        bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
+    )
+
+    btn_analytics_tab = ft.ElevatedButton(
+        content=ft.Text("📊 التحليلات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
+        bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
+    )
+
+    def update_tab_buttons_colors(selected_btn):
+        for b in [btn_tasks_tab, btn_expenses_tab, btn_analytics_tab]:
+            if b == selected_btn:
+                b.bgcolor = ft.Colors.BLUE_700
+                b.content.color = ft.Colors.WHITE
+            else:
+                b.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
+                b.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
+
+    def show_tasks_tab(e):
+        update_tab_buttons_colors(btn_tasks_tab)
+        content_area.content = tasks_view_container
+        page.update()
+
+    def show_expenses_tab(e):
+        update_tab_buttons_colors(btn_expenses_tab)
+        content_area.content = expenses_view_container
+        page.update()
+
+    def show_analytics_tab(e):
+        update_tab_buttons_colors(btn_analytics_tab)
+        load_analytics()
+        content_area.content = analytics_content
+        page.update()
+
+    def show_settings_screen(e):
+        # إلغاء تمييز الأزرار السفلية عند الانتقال للإعدادات عبر الزر العلوي
+        for b in [btn_tasks_tab, btn_expenses_tab, btn_analytics_tab]:
+            b.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
+            b.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
+        content_area.content = settings_view_container
+        page.update()
+
+    btn_tasks_tab.on_click = show_tasks_tab
+    btn_expenses_tab.on_click = show_expenses_tab
+    btn_analytics_tab.on_click = show_analytics_tab
+
+    # --- وضع زر الإعدادات في المكان الذي أشرت إليه تماماً (أقصى اليمين العلوي في الـ AppBar) ---
     page.appbar = ft.AppBar(
         title=ft.Text("منظّم يومك الاحترافي 🎯", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
         center_title=True,
         bgcolor=ft.Colors.BLUE_700,
-        actions=[settings_top_btn]
+        actions=[
+            ft.IconButton(
+                icon=ft.Icons.SETTINGS,
+                icon_color=ft.Colors.WHITE,
+                tooltip="الإعدادات",
+                on_click=show_settings_screen
+            )
+        ]
     )
 
     def enter_app(e):
@@ -127,7 +239,7 @@ def main(page: ft.Page):
                 ft.Divider(height=15, color=ft.Colors.TRANSPARENT),
                 ft.Text("« نحو إنتاجية متكاملة وتحكم كامل بالمهام والميزانية »", size=13, italic=True, color=ft.Colors.GREY_600, text_align=ft.TextAlign.CENTER),
                 ft.Divider(height=25, color=ft.Colors.TRANSPARENT),
-                ft.Button(
+                ft.ElevatedButton(
                     content=ft.Text("الدخول لوحة التحكم 🚀", color=ft.Colors.WHITE),
                     on_click=enter_app,
                     bgcolor=ft.Colors.BLUE_600,
@@ -137,7 +249,7 @@ def main(page: ft.Page):
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
-        alignment=ft.Alignment(0, 0),
+        alignment=ft.alignment.center,
         expand=True,
         animate_opacity=400,
     )
@@ -177,7 +289,6 @@ def main(page: ft.Page):
         if due_count > 0:
             show_snack(f"تنبيه: لديك {due_count} مهام مستحقة اليوم!", icon=ft.Icons.NOTIFICATIONS_ACTIVE)
 
-    # --- تصدير تقرير PDF ---
     def export_to_pdf(e):
         try:
             pdf = FPDF()
@@ -218,7 +329,7 @@ def main(page: ft.Page):
             show_snack(f"خطأ أثناء التصدير: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
     # --- قسم التحليلات والرسوم البيانية ---
-    analytics_content = ft.Column(spacing=15)
+    analytics_content = ft.Column(spacing=15, scroll=ft.ScrollMode.AUTO, expand=True)
 
     def load_analytics():
         analytics_content.controls.clear()
@@ -294,7 +405,7 @@ def main(page: ft.Page):
         
         analytics_content.controls.append(
             ft.Row([
-                ft.Button(content=ft.Text("📄 تصدير تقرير PDF", color=ft.Colors.WHITE), icon=ft.Icons.DOWNLOAD, on_click=export_to_pdf, bgcolor=ft.Colors.BLUE_600),
+                ft.ElevatedButton(content=ft.Text("📄 تصدير تقرير PDF", color=ft.Colors.WHITE), icon=ft.Icons.DOWNLOAD, on_click=export_to_pdf, bgcolor=ft.Colors.BLUE_600),
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=5)
         )
         page.update()
@@ -479,8 +590,8 @@ def main(page: ft.Page):
 
             dismissible_card = ft.Dismissible(
                 content=ft.Card(content=task_content),
-                background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.Alignment(0.8, 0), padding=20, content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
-                secondary_background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.Alignment(-0.8, 0), padding=20, content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
+                background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.alignment.center_right, padding=20, content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
+                secondary_background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.alignment.center_left, padding=20, content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
                 on_dismiss=lambda e, tid=task_id: delete_task_item(None, tid)
             )
 
@@ -510,7 +621,7 @@ def main(page: ft.Page):
         content=ft.Column([
             ft.Row([
                 task_input,
-                ft.Button(content=ft.Text("إضافة", color=ft.Colors.WHITE), on_click=add_task, bgcolor=ft.Colors.GREEN_600, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)))
+                ft.ElevatedButton(content=ft.Text("إضافة", color=ft.Colors.WHITE), on_click=add_task, bgcolor=ft.Colors.GREEN_600, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)))
             ]),
             ft.Row([
                 ft.OutlinedButton(content=ft.Row([ft.Icon(ft.Icons.CALENDAR_MONTH, size=16), date_button_text]), on_click=lambda e: setattr(date_picker, 'open', True) or page.update()),
@@ -523,8 +634,9 @@ def main(page: ft.Page):
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Divider(height=10),
             tasks_list
-        ]),
-        padding=5
+        ], scroll=ft.ScrollMode.AUTO),
+        padding=5,
+        expand=True
     )
 
     # --- إدارة المصروفات والتصنيفات المخصصة ---
@@ -661,124 +773,16 @@ def main(page: ft.Page):
                 expense_amount,
                 category_dropdown,
                 ft.IconButton(icon=ft.Icons.ADD_CIRCLE, icon_color=ft.Colors.BLUE_600, tooltip="إضافة تصنيف جديد", on_click=lambda e: setattr(new_cat_dlg, 'open', True) or page.update()),
-                ft.Button(content=ft.Text("إضافة", color=ft.Colors.WHITE), on_click=add_expense, bgcolor=ft.Colors.GREEN_600, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)))
+                ft.ElevatedButton(content=ft.Text("إضافة", color=ft.Colors.WHITE), on_click=add_expense, bgcolor=ft.Colors.GREEN_600, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)))
             ]),
             ft.Divider(height=20),
             expenses_list
-        ]),
-        padding=5
+        ], scroll=ft.ScrollMode.AUTO),
+        padding=5,
+        expand=True
     )
 
-    # --- شاشة الإعدادات المخصصة (تمت إزالة زر الوضع الليلي من هنا وأصبح متاحاً في الإعدادات فقط) ---
-    def clear_all_data(e):
-        conn = sqlite3.connect("data.db")
-        cur = conn.cursor()
-        cur.execute("DELETE FROM tasks")
-        cur.execute("DELETE FROM expenses")
-        conn.commit()
-        conn.close()
-        load_tasks()
-        load_expenses()
-        load_analytics()
-        show_snack("تم مسح كافة البيانات بنجاح", icon=ft.Icons.WARNING, is_error=True)
-
-    settings_view_container = ft.Container(
-        content=ft.Column([
-            ft.Text("⚙️ إعدادات التطبيق", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700),
-            ft.Divider(height=10),
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("المظهر والوضع", weight=ft.FontWeight.BOLD),
-                        ft.Row([
-                            ft.Text("الوضع الليلي / النهاري"),
-                            ft.Switch(value=page.theme_mode == ft.ThemeMode.DARK, on_change=toggle_theme)
-                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
-                    ]),
-                    padding=15
-                )
-            ),
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("إدارة البيانات", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600),
-                        ft.Text("حذف جميع المهام والمصروفات المسجلة نهائياً.", size=12, color=ft.Colors.GREY_600),
-                        ft.Divider(height=5),
-                        ft.Button(content=ft.Text("مسح كافة البيانات 🗑️", color=ft.Colors.WHITE), on_click=clear_all_data, bgcolor=ft.Colors.RED_600)
-                    ], spacing=8),
-                    padding=15
-                )
-            ),
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("حول التطبيق", weight=ft.FontWeight.BOLD),
-                        ft.Text("منظّم يومك الاحترافي - الإصدار الثالث الشامل."),
-                        ft.Text("تم البرمجة والتطوير بواسطة: حكيم محفوظ 💻", size=12, color=ft.Colors.BLUE_600)
-                    ], spacing=5),
-                    padding=15
-                )
-            )
-        ], spacing=15),
-        padding=5
-    )
-
-    content_area = ft.Container(content=tasks_view_container, expand=True)
-
-    # أزرار التنقل السفلية الرئيسية
-    btn_tasks_tab = ft.Button(
-        content=ft.Text("📋 المهام", color=ft.Colors.WHITE),
-        bgcolor=ft.Colors.BLUE_700,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
-    )
-    
-    btn_expenses_tab = ft.Button(
-        content=ft.Text("💰 المصروفات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
-        bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
-    )
-
-    btn_analytics_tab = ft.Button(
-        content=ft.Text("📊 التحليلات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
-        bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
-    )
-
-    def update_tab_buttons_colors(selected_btn):
-        for b in [btn_tasks_tab, btn_expenses_tab, btn_analytics_tab]:
-            if b == selected_btn:
-                b.bgcolor = ft.Colors.BLUE_700
-                b.content.color = ft.Colors.WHITE
-            else:
-                b.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
-                b.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
-
-    def show_tasks_tab(e):
-        update_tab_buttons_colors(btn_tasks_tab)
-        content_area.content = tasks_view_container
-        page.update()
-
-    def show_expenses_tab(e):
-        update_tab_buttons_colors(btn_expenses_tab)
-        content_area.content = expenses_view_container
-        page.update()
-
-    def show_analytics_tab(e):
-        update_tab_buttons_colors(btn_analytics_tab)
-        load_analytics()
-        content_area.content = analytics_content
-        page.update()
-
-    def show_settings_tab(e):
-        for b in [btn_tasks_tab, btn_expenses_tab, btn_analytics_tab]:
-            b.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
-            b.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
-        content_area.content = settings_view_container
-        page.update()
-
-    btn_tasks_tab.on_click = show_tasks_tab
-    btn_expenses_tab.on_click = show_expenses_tab
-    btn_analytics_tab.on_click = show_analytics_tab
+    content_area.content = tasks_view_container
 
     def refresh_all_views():
         load_tasks()
@@ -815,7 +819,7 @@ def main(page: ft.Page):
             ft.Row([
                 btn_tasks_tab,
                 btn_expenses_tab,
-                btn_analytics_tab,
+                btn_analytics_tab
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
 
             ft.Divider(height=15),
