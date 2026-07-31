@@ -1,6 +1,7 @@
 import flet as ft
 import sqlite3
 import os
+import shutil
 from datetime import datetime
 from fpdf import FPDF
 
@@ -129,9 +130,6 @@ def main(page: ft.Page):
 
     total_expenses_card_text = ft.Text("0.00 ريال", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600)
     remaining_tasks_card_text = ft.Text("0", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
-    
-    progress_bar = ft.ProgressBar(value=0.0, width=320, height=8, border_radius=5, color=ft.Colors.GREEN_500, bgcolor=ft.Colors.GREY_300)
-    progress_text = ft.Text("نسبة إنجاز المهام: 0%", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_600)
 
     def update_stats():
         conn = sqlite3.connect("data.db")
@@ -140,9 +138,6 @@ def main(page: ft.Page):
         res_exp = cur.fetchone()[0]
         total_exp = res_exp if res_exp else 0.0
 
-        cur.execute("SELECT COUNT(*) FROM tasks")
-        total_t = cur.fetchone()[0] or 0
-        
         cur.execute("SELECT COUNT(*) FROM tasks WHERE done = 0")
         res_tasks = cur.fetchone()[0]
         rem_tasks = res_tasks if res_tasks else 0
@@ -150,19 +145,9 @@ def main(page: ft.Page):
 
         total_expenses_card_text.value = f"{total_exp:.2f} ريال"
         remaining_tasks_card_text.value = str(rem_tasks)
-
-        if total_t > 0:
-            done_count = total_t - rem_tasks
-            ratio = done_count / total_t
-            progress_bar.value = ratio
-            progress_text.value = f"نسبة إنجاز المهام: {int(ratio * 100)}% ({done_count}/{total_t})"
-        else:
-            progress_bar.value = 0.0
-            progress_text.value = "نسبة إنجاز المهام: 0%"
-
         page.update()
 
-    # --- ميزة تصدير تقرير PDF المحدثة (بدون تحذيرات) ---
+    # --- ميزة تصدير تقرير PDF ---
     def export_to_pdf(e):
         try:
             pdf = FPDF()
@@ -176,7 +161,6 @@ def main(page: ft.Page):
             conn = sqlite3.connect("data.db")
             cur = conn.cursor()
 
-            # جلب المهام
             pdf.set_font("Arial", "B", 14)
             pdf.cell(200, 10, txt="Tasks Summary:", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Arial", "", 11)
@@ -187,7 +171,6 @@ def main(page: ft.Page):
                 pdf.cell(200, 8, txt=line, new_x="LMARGIN", new_y="NEXT")
 
             pdf.ln(5)
-            # جلب المصروفات
             pdf.set_font("Arial", "B", 14)
             pdf.cell(200, 10, txt="Expenses Summary:", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Arial", "", 11)
@@ -203,6 +186,37 @@ def main(page: ft.Page):
             show_snack(f"تم تصدير التقرير بنجاح: {filename}", icon=ft.Icons.PICTURE_AS_PDF)
         except Exception as ex:
             show_snack(f"خطأ أثناء التصدير: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
+
+    # --- ميزة النسخ الاحتياطي واستعادة البيانات ---
+    def backup_database(e):
+        try:
+            if not os.path.exists("data.db"):
+                show_snack("لا توجد بيانات للنسخ الاحتياطي حالياً", icon=ft.Icons.WARNING, is_error=True)
+                return
+            
+            backup_filename = f"backup_monazzam_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+            shutil.copy("data.db", backup_filename)
+            show_snack(f"تم حفظ النسخة الاحتياطية بنجاح: {backup_filename}", icon=ft.Icons.SAVE)
+        except Exception as ex:
+            show_snack(f"خطأ في النسخ الاحتياطي: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
+
+    def on_restore_file_picked(e: ft.FilePickerResultEvent):
+        if e.files and len(e.files) > 0:
+            source_path = e.files[0].path
+            try:
+                shutil.copy(source_path, "data.db")
+                load_tasks()
+                load_expenses()
+                load_analytics()
+                show_snack("تمت استعادة البيانات بنجاح! 🎉", icon=ft.Icons.CLOUD_DONE)
+            except Exception as ex:
+                show_snack(f"فشلت الاستعادة: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
+
+    file_picker_restore = ft.FilePicker(on_result=on_restore_file_picked)
+    page.overlay.append(file_picker_restore)
+
+    def restore_database(e):
+        file_picker_restore.pick_files(allowed_extensions=["db"], dialog_title="اختر ملف النسخة الاحتياطية")
 
     # --- نافذة قسم التحليلات والتقارير ---
     analytics_content = ft.Column(spacing=15)
@@ -226,7 +240,6 @@ def main(page: ft.Page):
             ft.Text("📊 لوحة التحليلات والإحصائيات الشاملة", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
         )
 
-        # بطاقة ملخص عام للإنتاجية
         analytics_content.controls.append(
             ft.Card(
                 content=ft.Container(
@@ -268,8 +281,13 @@ def main(page: ft.Page):
         analytics_content.controls.append(
             ft.Divider(height=10)
         )
+        # أزرار التصدير، النسخ الاحتياطي، والاستعادة المتكاملة
         analytics_content.controls.append(
-            ft.ElevatedButton("📄 تصدير تقرير شامل (PDF)", icon=ft.Icons.DOWNLOAD, on_click=export_to_pdf, bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE)
+            ft.Row([
+                ft.ElevatedButton("📄 تصدير PDF", icon=ft.Icons.DOWNLOAD, on_click=export_to_pdf, bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE),
+                ft.ElevatedButton("💾 نسخ احتياطي", icon=ft.Icons.SAVE_ALT, on_click=backup_database, bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE),
+                ft.ElevatedButton("🔄 استعادة", icon=ft.Icons.RESTORE, on_click=restore_database, bgcolor=ft.Colors.ORANGE_800, color=ft.Colors.WHITE),
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=5)
         )
         page.update()
 
@@ -688,16 +706,7 @@ def main(page: ft.Page):
                     ),
                     elevation=2,
                 ),
-            ], alignment=ft.MainAxisAlignment.CENTER),
-
-            ft.Container(
-                content=ft.Column([
-                    progress_text,
-                    progress_bar
-                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
-                padding=5,
-                alignment=ft.Alignment(0, 0)
-            ),
+            ], alignment=ft.MainAxisAlignment.SPACE_AROUND),
 
             ft.Divider(height=5, color=ft.Colors.TRANSPARENT),
 
