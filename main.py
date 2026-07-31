@@ -50,7 +50,6 @@ def main(page: ft.Page):
         current_locale=ft.Locale("ar")
     )
 
-    # نظام التنبيهات المخصص بالأيقونات
     def show_snack(message, icon=ft.Icons.CHECK_CIRCLE, is_error=False):
         page.snack_bar = ft.SnackBar(
             content=ft.Row([
@@ -64,7 +63,6 @@ def main(page: ft.Page):
         page.snack_bar.open = True
         page.update()
 
-    # --- تغيير الوضع (ليلي / نهاري) ---
     def toggle_theme(e):
         if page.theme_mode == ft.ThemeMode.LIGHT:
             page.theme_mode = ft.ThemeMode.DARK
@@ -92,7 +90,6 @@ def main(page: ft.Page):
         actions=[theme_btn]
     )
 
-    # --- أ) الشاشة الترحيبية مع حركة انتقال ناعمة ---
     def enter_app(e):
         welcome_screen.opacity = 0.0
         welcome_screen.visible = False
@@ -127,7 +124,6 @@ def main(page: ft.Page):
         animate_opacity=400,
     )
 
-    # عناصر الإحصائيات وشريط التقدم التفاعلي
     total_expenses_card_text = ft.Text("0.00 ريال", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600)
     remaining_tasks_card_text = ft.Text("0", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
     
@@ -163,7 +159,6 @@ def main(page: ft.Page):
 
         page.update()
 
-    # --- ب) واجهة المهام ---
     tasks_list = ft.Column(spacing=8)
     task_filter_mode = {"mode": "all"}
 
@@ -340,10 +335,11 @@ def main(page: ft.Page):
                 padding=10,
             )
 
+            # التعديل تم هنا (استخدام ft.padding.only بدلاً من ft.padding.symmetric)
             dismissible_card = ft.Dismissible(
                 content=ft.Card(content=task_content),
-                background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.Alignment(0.8, 0), padding=ft.padding.symmetric(horizontal=20), content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
-                secondary_background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.Alignment(-0.8, 0), padding=ft.padding.symmetric(horizontal=20), content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
+                background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.Alignment(0.8, 0), padding=ft.padding.only(left=20, right=20), content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
+                secondary_background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.Alignment(-0.8, 0), padding=ft.padding.only(left=20, right=20), content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
                 on_dismiss=lambda e, tid=task_id: delete_task_item(None, tid)
             )
 
@@ -389,7 +385,6 @@ def main(page: ft.Page):
         padding=5
     )
 
-    # --- ج) واجهة المصروفات ---
     expenses_list = ft.Column(spacing=8)
     expense_desc = ft.TextField(hint_text="وصف المصروف...", expand=True, border_radius=10, border_color=ft.Colors.BLUE_400, on_submit=lambda e: add_expense(e))
     expense_amount = ft.TextField(hint_text="المبلغ", width=95, keyboard_type=ft.KeyboardType.NUMBER, border_radius=10, border_color=ft.Colors.BLUE_400, on_submit=lambda e: add_expense(e))
@@ -532,7 +527,6 @@ def main(page: ft.Page):
         padding=5
     )
 
-    # --- د) أزرار التبديل والأدوات العليا ---
     content_area = ft.Container(content=tasks_view_container, expand=True)
 
     btn_tasks_tab = ft.ElevatedButton(
@@ -593,12 +587,13 @@ def main(page: ft.Page):
                 ),
             ], alignment=ft.MainAxisAlignment.CENTER),
 
+            # التعديل تم هنا أيضاً (استخدام ft.padding.only)
             ft.Container(
                 content=ft.Column([
                     progress_text,
                     progress_bar
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
-                padding=ft.padding.symmetric(vertical=5),
+                padding=ft.padding.only(top=5, bottom=5),
                 alignment=ft.Alignment(0, 0)
             ),
 
