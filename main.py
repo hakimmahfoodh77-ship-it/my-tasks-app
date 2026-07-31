@@ -92,7 +92,7 @@ def main(page: ft.Page):
         actions=[theme_btn]
     )
 
-    # --- أ) الشاشة الترحيبية مع حركة انتقال ناعمة (Fade & Slide) ---
+    # --- أ) الشاشة الترحيبية مع حركة انتقال ناعمة ---
     def enter_app(e):
         welcome_screen.opacity = 0.0
         welcome_screen.visible = False
@@ -124,14 +124,13 @@ def main(page: ft.Page):
         ),
         alignment=ft.Alignment(0, 0),
         expand=True,
-        animate_opacity=400, # تأثير انتقال ناعم
+        animate_opacity=400,
     )
 
     # عناصر الإحصائيات وشريط التقدم التفاعلي
     total_expenses_card_text = ft.Text("0.00 ريال", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600)
     remaining_tasks_card_text = ft.Text("0", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
     
-    # شريط التقدم المرئي للإنجاز
     progress_bar = ft.ProgressBar(value=0.0, width=320, height=8, border_radius=5, color=ft.Colors.GREEN_500, bgcolor=ft.Colors.GREY_300)
     progress_text = ft.Text("نسبة إنجاز المهام: 0%", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_600)
 
@@ -153,7 +152,6 @@ def main(page: ft.Page):
         total_expenses_card_text.value = f"{total_exp:.2f} ريال"
         remaining_tasks_card_text.value = str(rem_tasks)
 
-        # حساب نسبة التقدم لشريط الإنجاز
         if total_t > 0:
             done_count = total_t - rem_tasks
             ratio = done_count / total_t
@@ -313,7 +311,6 @@ def main(page: ft.Page):
             due_info = f" | 📅 الموعد: {due_date}" if due_date else ""
             text_color = ft.Colors.GREY_500 if done else (ft.Colors.WHITE70 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87)
             
-            # ميزة السحب الجانبي (Dismissible / Swipe to delete)
             task_content = ft.Container(
                 content=ft.Row(
                     [
@@ -343,7 +340,6 @@ def main(page: ft.Page):
                 padding=10,
             )
 
-            # تغليف البطاقة بـ Dismissible لتفعيل خاصية السحب للحذف
             dismissible_card = ft.Dismissible(
                 content=ft.Card(content=task_content),
                 background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.Alignment(0.8, 0), padding=ft.padding.symmetric(horizontal=20), content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
@@ -574,7 +570,6 @@ def main(page: ft.Page):
 
     main_layout = ft.Column(
         [
-            # البطاقات العلوية الإحصائية
             ft.Row([
                 ft.Card(
                     content=ft.Container(
@@ -598,7 +593,6 @@ def main(page: ft.Page):
                 ),
             ], alignment=ft.MainAxisAlignment.CENTER),
 
-            # شريط التقدم المرئي للإنجاز الجديد
             ft.Container(
                 content=ft.Column([
                     progress_text,
@@ -610,7 +604,6 @@ def main(page: ft.Page):
 
             ft.Divider(height=5, color=ft.Colors.TRANSPARENT),
 
-            # أزرار التبديل للأقسام
             ft.Row([
                 btn_tasks_tab,
                 btn_expenses_tab,
@@ -624,7 +617,7 @@ def main(page: ft.Page):
         expand=True,
         visible=False,
         opacity=0.0,
-        animate_opacity=400, # حركة انتقالية ناعمة لظهور لوحة التحكم
+        animate_opacity=400,
     )
 
     page.add(welcome_screen, main_layout)
