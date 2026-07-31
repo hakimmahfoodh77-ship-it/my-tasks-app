@@ -50,10 +50,16 @@ def main(page: ft.Page):
         current_locale=ft.Locale("ar")
     )
 
-    def show_snack(message, is_error=False):
+    # نظام التنبيهات المخصص بالأيقونات
+    def show_snack(message, icon=ft.Icons.CHECK_CIRCLE, is_error=False):
         page.snack_bar = ft.SnackBar(
-            content=ft.Text(message, color=ft.Colors.WHITE),
-            bgcolor=ft.Colors.RED_700 if is_error else ft.Colors.GREEN_700
+            content=ft.Row([
+                ft.Icon(icon, color=ft.Colors.WHITE, size=20),
+                ft.Text(message, color=ft.Colors.WHITE, weight=ft.FontWeight.BOLD)
+            ], spacing=10),
+            bgcolor=ft.Colors.RED_700 if is_error else ft.Colors.GREEN_700,
+            behavior=ft.SnackBarBehavior.FLOATING,
+            shape=ft.RoundedRectangleBorder(radius=10),
         )
         page.snack_bar.open = True
         page.update()
@@ -68,7 +74,7 @@ def main(page: ft.Page):
             page.theme_mode = ft.ThemeMode.LIGHT
             theme_btn.icon = ft.Icons.DARK_MODE
             theme_btn.icon_color = ft.Colors.WHITE
-        load_tasks()  # لإعادة تحديث ألوان النصوص حسب الوضع الحالي
+        load_tasks()
         load_expenses()
         page.update()
 
@@ -86,27 +92,29 @@ def main(page: ft.Page):
         actions=[theme_btn]
     )
 
-    # --- أ) الشاشة الترحيبية ---
+    # --- أ) الشاشة الترحيبية مع حركة انتقال ناعمة (Fade & Slide) ---
     def enter_app(e):
+        welcome_screen.opacity = 0.0
         welcome_screen.visible = False
         main_layout.visible = True
+        main_layout.opacity = 1.0
         page.update()
 
     welcome_screen = ft.Container(
         content=ft.Column(
             [
                 ft.Icon(ft.Icons.AUTO_AWESOME, size=80, color=ft.Colors.BLUE_700),
-                ft.Text("مرحباً بك👋", size=26, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900, text_align=ft.TextAlign.CENTER),
-                ft.Text("تطبيق منظّم يومك", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_800, text_align=ft.TextAlign.CENTER),
+                ft.Text("مرحباً بك يا حكيم 👋", size=26, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900, text_align=ft.TextAlign.CENTER),
+                ft.Text("تطبيق منظّم يومك (النسخة المذهلة)", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_800, text_align=ft.TextAlign.CENTER),
                 ft.Container(
                     content=ft.Text("تصميم وتطوير: حكيم محفوظ", size=14, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_600),
                     padding=8, border_radius=10, bgcolor=ft.Colors.BLUE_50,
                 ),
                 ft.Divider(height=15, color=ft.Colors.TRANSPARENT),
-                ft.Text("« تنظيم يومك هو أول خطوات نجاحك »", size=13, italic=True, color=ft.Colors.GREY_600, text_align=ft.TextAlign.CENTER),
+                ft.Text("« ابتكار الواجهات يبدأ هنا .. نحو إنتاجية بلا حدود »", size=13, italic=True, color=ft.Colors.GREY_600, text_align=ft.TextAlign.CENTER),
                 ft.Divider(height=25, color=ft.Colors.TRANSPARENT),
                 ft.ElevatedButton(
-                    "الدخول للتطبيق 🚀",
+                    "الدخول لوحة التحكم 🚀",
                     on_click=enter_app,
                     style=ft.ButtonStyle(padding=20, shape=ft.RoundedRectangleBorder(radius=12)),
                 ),
@@ -116,11 +124,16 @@ def main(page: ft.Page):
         ),
         alignment=ft.Alignment(0, 0),
         expand=True,
+        animate_opacity=400, # تأثير انتقال ناعم
     )
 
-    # إحصائيات علوية
+    # عناصر الإحصائيات وشريط التقدم التفاعلي
     total_expenses_card_text = ft.Text("0.00 ريال", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600)
     remaining_tasks_card_text = ft.Text("0", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
+    
+    # شريط التقدم المرئي للإنجاز
+    progress_bar = ft.ProgressBar(value=0.0, width=320, height=8, border_radius=5, color=ft.Colors.GREEN_500, bgcolor=ft.Colors.GREY_300)
+    progress_text = ft.Text("نسبة إنجاز المهام: 0%", size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_600)
 
     def update_stats():
         conn = sqlite3.connect("data.db")
@@ -129,6 +142,9 @@ def main(page: ft.Page):
         res_exp = cur.fetchone()[0]
         total_exp = res_exp if res_exp else 0.0
 
+        cur.execute("SELECT COUNT(*) FROM tasks")
+        total_t = cur.fetchone()[0] or 0
+        
         cur.execute("SELECT COUNT(*) FROM tasks WHERE done = 0")
         res_tasks = cur.fetchone()[0]
         rem_tasks = res_tasks if res_tasks else 0
@@ -136,6 +152,17 @@ def main(page: ft.Page):
 
         total_expenses_card_text.value = f"{total_exp:.2f} ريال"
         remaining_tasks_card_text.value = str(rem_tasks)
+
+        # حساب نسبة التقدم لشريط الإنجاز
+        if total_t > 0:
+            done_count = total_t - rem_tasks
+            ratio = done_count / total_t
+            progress_bar.value = ratio
+            progress_text.value = f"نسبة إنجاز المهام: {int(ratio * 100)}% ({done_count}/{total_t})"
+        else:
+            progress_bar.value = 0.0
+            progress_text.value = "نسبة إنجاز المهام: 0%"
+
         page.update()
 
     # --- ب) واجهة المهام ---
@@ -165,7 +192,7 @@ def main(page: ft.Page):
             date_button_text.value = "التاريخ"
             time_button_text.value = "الوقت"
             load_tasks()
-            show_snack(f"📌 تمت إضافة المهمة بنجاح!")
+            show_snack("تمت إضافة المهمة بنجاح!", icon=ft.Icons.TASK_ALT)
 
     task_input = ft.TextField(
         hint_text="أدخل مهمة جديدة (واضغط Enter)...", 
@@ -213,7 +240,7 @@ def main(page: ft.Page):
             conn.close()
             edit_task_dlg.open = False
             load_tasks()
-            show_snack("تم تعديل المهمة بنجاح ✅")
+            show_snack("تم تعديل المهمة بنجاح", icon=ft.Icons.EDIT_NOTE)
 
     edit_task_dlg = ft.AlertDialog(
         title=ft.Text("تعديل المهمة"),
@@ -281,44 +308,50 @@ def main(page: ft.Page):
                 c.commit()
                 c.close()
                 load_tasks()
-                show_snack("تم حذف المهمة بنجاح")
+                show_snack("تم حذف المهمة", icon=ft.Icons.DELETE_OUTLINE, is_error=True)
 
             due_info = f" | 📅 الموعد: {due_date}" if due_date else ""
-            
-            # تحديد لون النص ديناميكياً ليناسب الوضع الليلي والنهاري
             text_color = ft.Colors.GREY_500 if done else (ft.Colors.WHITE70 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87)
             
-            task_card = ft.Card(
-                content=ft.Container(
-                    content=ft.Row(
-                        [
-                            ft.Checkbox(value=bool(done), on_change=on_change),
-                            ft.Column(
-                                [
-                                    ft.Text(
-                                        title, 
-                                        style=ft.TextStyle(
-                                            size=16, 
-                                            weight=ft.FontWeight.BOLD,
-                                            decoration=ft.TextDecoration.LINE_THROUGH if done else ft.TextDecoration.NONE,
-                                            color=text_color
-                                        )
-                                    ),
-                                    ft.Text(f"🕒 {created_at}{due_info}", style=ft.TextStyle(size=12, color=ft.Colors.GREY_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_700)),
-                                ],
-                                alignment=ft.MainAxisAlignment.CENTER,
-                                spacing=2,
-                                expand=True,
-                            ),
-                            ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=ft.Colors.BLUE_400, on_click=open_edit_task),
-                            ft.TextButton("حذف", on_click=delete_task_item, style=ft.ButtonStyle(color=ft.Colors.RED_400)),
-                        ],
-                        alignment=ft.MainAxisAlignment.START,
-                    ),
-                    padding=10,
-                )
+            # ميزة السحب الجانبي (Dismissible / Swipe to delete)
+            task_content = ft.Container(
+                content=ft.Row(
+                    [
+                        ft.Checkbox(value=bool(done), on_change=on_change),
+                        ft.Column(
+                            [
+                                ft.Text(
+                                    title, 
+                                    style=ft.TextStyle(
+                                        size=16, 
+                                        weight=ft.FontWeight.BOLD,
+                                        decoration=ft.TextDecoration.LINE_THROUGH if done else ft.TextDecoration.NONE,
+                                        color=text_color
+                                    )
+                                ),
+                                ft.Text(f"🕒 {created_at}{due_info}", style=ft.TextStyle(size=12, color=ft.Colors.GREY_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_700)),
+                            ],
+                            alignment=ft.MainAxisAlignment.CENTER,
+                            spacing=2,
+                            expand=True,
+                        ),
+                        ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=ft.Colors.BLUE_400, on_click=open_edit_task),
+                        ft.IconButton(icon=ft.Icons.DELETE, icon_size=18, icon_color=ft.Colors.RED_400, on_click=delete_task_item, tooltip="اسحب أو اضغط للحذف"),
+                    ],
+                    alignment=ft.MainAxisAlignment.START,
+                ),
+                padding=10,
             )
-            tasks_list.controls.append(task_card)
+
+            # تغليف البطاقة بـ Dismissible لتفعيل خاصية السحب للحذف
+            dismissible_card = ft.Dismissible(
+                content=ft.Card(content=task_content),
+                background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.Alignment(0.8, 0), padding=ft.padding.symmetric(horizontal=20), content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
+                secondary_background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.Alignment(-0.8, 0), padding=ft.padding.symmetric(horizontal=20), content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
+                on_dismiss=lambda e, tid=task_id: delete_task_item(None, tid)
+            )
+
+            tasks_list.controls.append(dismissible_card)
         update_stats()
         page.update()
 
@@ -337,7 +370,7 @@ def main(page: ft.Page):
         conn.commit()
         conn.close()
         load_tasks()
-        show_snack("تم تفريغ المهام المكتملة بنجاح 🧹")
+        show_snack("تم تفريغ المهام المكتملة بنجاح", icon=ft.Icons.CLEANING_SERVICES)
 
     tasks_view_container = ft.Container(
         content=ft.Column([
@@ -396,9 +429,9 @@ def main(page: ft.Page):
                 expense_desc.value = ""
                 expense_amount.value = ""
                 load_expenses()
-                show_snack("💰 تمت إضافة المصروف بنجاح")
+                show_snack("تمت إضافة المصروف بنجاح", icon=ft.Icons.ATTACH_MONEY)
             except ValueError:
-                show_snack("يرجى إدخال مبلغ صحيح!", is_error=True)
+                show_snack("يرجى إدخال مبلغ صحيح!", icon=ft.Icons.ERROR, is_error=True)
 
     edit_expense_id = {"id": None}
     edit_exp_desc = ft.TextField(label="تعديل الوصف")
@@ -415,7 +448,7 @@ def main(page: ft.Page):
                 conn.close()
                 edit_expense_dlg.open = False
                 load_expenses()
-                show_snack("تم تعديل المصروف بنجاح ✅")
+                show_snack("تم تعديل المصروف بنجاح", icon=ft.Icons.CHECK)
             except ValueError:
                 pass
 
@@ -455,7 +488,7 @@ def main(page: ft.Page):
                 c.commit()
                 c.close()
                 load_expenses()
-                show_snack("تم حذف المصروف")
+                show_snack("تم حذف المصروف", icon=ft.Icons.DELETE_OUTLINE, is_error=True)
 
             desc_color = ft.Colors.WHITE70 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
 
@@ -478,7 +511,7 @@ def main(page: ft.Page):
                                 ),
                                 ft.Text(f"{amt:.2f} ريال", weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREEN_800),
                                 ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=ft.Colors.BLUE_400, on_click=open_edit_exp),
-                                ft.TextButton("حذف", on_click=delete_expense_item, style=ft.ButtonStyle(color=ft.Colors.RED_400)),
+                                ft.IconButton(icon=ft.Icons.DELETE, icon_size=18, icon_color=ft.Colors.RED_400, on_click=delete_expense_item),
                             ],
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         ),
@@ -565,6 +598,16 @@ def main(page: ft.Page):
                 ),
             ], alignment=ft.MainAxisAlignment.CENTER),
 
+            # شريط التقدم المرئي للإنجاز الجديد
+            ft.Container(
+                content=ft.Column([
+                    progress_text,
+                    progress_bar
+                ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
+                padding=ft.padding.symmetric(vertical=5),
+                alignment=ft.Alignment(0, 0)
+            ),
+
             ft.Divider(height=5, color=ft.Colors.TRANSPARENT),
 
             # أزرار التبديل للأقسام
@@ -580,6 +623,8 @@ def main(page: ft.Page):
         scroll=ft.ScrollMode.AUTO,
         expand=True,
         visible=False,
+        opacity=0.0,
+        animate_opacity=400, # حركة انتقالية ناعمة لظهور لوحة التحكم
     )
 
     page.add(welcome_screen, main_layout)
