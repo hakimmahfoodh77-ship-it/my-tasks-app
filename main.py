@@ -187,7 +187,7 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ أثناء التصدير: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
-    # --- ميزة النسخ الاحتياطي واستعادة البيانات ---
+    # --- ميزة النسخ الاحتياطي واستعادة البيانات (متوافقة مع الإصدارات الحديثة) ---
     def backup_database(e):
         try:
             if not os.path.exists("data.db"):
@@ -200,9 +200,16 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ في النسخ الاحتياطي: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
-    def on_restore_file_picked(e: ft.FilePickerResultEvent):
-        if e.files and len(e.files) > 0:
-            source_path = e.files[0].path
+    file_picker_restore = ft.FilePicker()
+    page.overlay.append(file_picker_restore)
+
+    async def restore_database(e):
+        result = await file_picker_restore.pick_files(
+            allowed_extensions=["db"], 
+            dialog_title="اختر ملف النسخة الاحتياطية"
+        )
+        if result and result.files and len(result.files) > 0:
+            source_path = result.files[0].path
             try:
                 shutil.copy(source_path, "data.db")
                 load_tasks()
@@ -211,12 +218,6 @@ def main(page: ft.Page):
                 show_snack("تمت استعادة البيانات بنجاح! 🎉", icon=ft.Icons.CLOUD_DONE)
             except Exception as ex:
                 show_snack(f"فشلت الاستعادة: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
-
-    file_picker_restore = ft.FilePicker(on_result=on_restore_file_picked)
-    page.overlay.append(file_picker_restore)
-
-    def restore_database(e):
-        file_picker_restore.pick_files(allowed_extensions=["db"], dialog_title="اختر ملف النسخة الاحتياطية")
 
     # --- نافذة قسم التحليلات والتقارير ---
     analytics_content = ft.Column(spacing=15)
