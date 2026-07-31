@@ -201,7 +201,7 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ في النسخ الاحتياطي: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
-    # تعريف FilePicker وإضافته حصرياً إلى page.overlay لتجنب خطأ Unknown control
+    # تعريف FilePicker وإضافته حصرياً إلى page.overlay لتجنب ظهور أي مربعات حمراء
     file_picker_restore = ft.FilePicker()
     page.overlay.append(file_picker_restore)
 
@@ -683,7 +683,6 @@ def main(page: ft.Page):
     btn_expenses_tab.on_click = show_expenses_tab
     btn_analytics_tab.on_click = show_analytics_tab
 
-    # تعديل ترتيب البطاقات وترتيب العرض لضمان المظهر المتناسق والمتباعد بالترتيب الصحيح
     main_layout = ft.Column(
         [
             ft.Row([
@@ -707,7 +706,7 @@ def main(page: ft.Page):
                     ),
                     elevation=2,
                 ),
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), # تم جعل التباعد منتظماً ومتباعداً بشكل صحيح
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
 
             ft.Divider(height=5, color=ft.Colors.TRANSPARENT),
 
@@ -728,8 +727,9 @@ def main(page: ft.Page):
         animate_opacity=400,
     )
 
+    # تم تمرير شاشات الترحيب والواجهة فقط بدون تمرير الـ file_picker للمتصفح المرئي
     page.add(welcome_screen, main_layout)
     load_tasks()
     load_expenses()
 
-ft.app(target=main)
+ft.run(target=main)
