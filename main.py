@@ -31,7 +31,6 @@ def init_db():
             created_at TEXT
         )
     """)
-    # إضافة عمود التصنيف للمصروفات القديمة إن لم يكن موجوداً
     try:
         cursor.execute("ALTER TABLE expenses ADD COLUMN category TEXT")
     except sqlite3.OperationalError:
@@ -44,7 +43,7 @@ init_db()
 
 # --- 2. واجهة التطبيق الرئيسية ---
 def main(page: ft.Page):
-    page.title = "منظّم يومك الاحترافي 🎯"
+    page.title = "منظّم يومك الاحترافي الخارق 🎯"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 10
     page.rtl = True
@@ -81,7 +80,7 @@ def main(page: ft.Page):
     )
 
     page.appbar = ft.AppBar(
-        title=ft.Text("منظّم يومك 🎯", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+        title=ft.Text("منظّم يومك 🎯 (نسخة الخبراء)", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
         center_title=True,
         bgcolor=ft.Colors.BLUE_700,
         actions=[theme_btn]
@@ -96,18 +95,18 @@ def main(page: ft.Page):
     welcome_screen = ft.Container(
         content=ft.Column(
             [
-                ft.Icon(ft.Icons.DASHBOARD_CUSTOMIZE_ROUNDED, size=80, color=ft.Colors.BLUE_700),
-                ft.Text("مرحباً بك يا حكيم 👋", size=28, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900, text_align=ft.TextAlign.CENTER),
-                ft.Text("تطبيق منظّم يومك (النسخة الاحترافية)", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_800, text_align=ft.TextAlign.CENTER),
+                ft.Icon(ft.Icons.AUTO_AWESOME, size=80, color=ft.Colors.BLUE_700),
+                ft.Text("مرحباً بك يا مبرمجنا المبدع حكيم 👋", size=26, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900, text_align=ft.TextAlign.CENTER),
+                ft.Text("تطبيق منظّم يومك (النسخة الذكية المتكاملة)", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_800, text_align=ft.TextAlign.CENTER),
                 ft.Container(
                     content=ft.Text("تصميم وتطوير: حكيم محفوظ", size=14, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_600),
                     padding=8, border_radius=10, bgcolor=ft.Colors.BLUE_50,
                 ),
                 ft.Divider(height=15, color=ft.Colors.TRANSPARENT),
-                ft.Text("« تنظيم يومك هو أول خطوات نجاحك واحترافك »", size=13, italic=True, color=ft.Colors.GREY_600, text_align=ft.TextAlign.CENTER),
+                ft.Text("« إبداع الواجهات يبدأ هنا .. نحو إنتاجية لا توقف »", size=13, italic=True, color=ft.Colors.GREY_600, text_align=ft.TextAlign.CENTER),
                 ft.Divider(height=25, color=ft.Colors.TRANSPARENT),
                 ft.ElevatedButton(
-                    "الدخول للتطبيق 🚀",
+                    "دخول لوحة التحكم 🚀",
                     on_click=enter_app,
                     style=ft.ButtonStyle(padding=20, shape=ft.RoundedRectangleBorder(radius=12)),
                 ),
@@ -141,7 +140,7 @@ def main(page: ft.Page):
 
     # --- ب) واجهة المهام ---
     tasks_list = ft.Column(spacing=8)
-    task_filter_mode = {"mode": "all"} # all, active, completed
+    task_filter_mode = {"mode": "all"}
 
     def add_task(e):
         if task_input.value and task_input.value.strip():
@@ -169,7 +168,7 @@ def main(page: ft.Page):
             show_snack(f"📌 تمت إضافة المهمة بنجاح!")
 
     task_input = ft.TextField(
-        hint_text="أدخل مهمة جديدة...", 
+        hint_text="أدخل مهمة جديدة (واضغط Enter للحفظ)...", 
         expand=True, 
         border_radius=10, 
         border_color=ft.Colors.BLUE_400,
@@ -226,9 +225,8 @@ def main(page: ft.Page):
     )
     page.overlay.append(edit_task_dlg)
 
-    # بحث المهام
     search_task_input = ft.TextField(
-        hint_text="بحث في المهام...", 
+        hint_text="بحث سريع في المهام...", 
         prefix_icon=ft.Icons.SEARCH, 
         dense=True, 
         border_radius=10,
@@ -321,7 +319,6 @@ def main(page: ft.Page):
         update_stats()
         page.update()
 
-    # أزرار فلترة المهام وحذف المكتمل
     btn_filter_all = ft.OutlinedButton("الكل", on_click=lambda e: set_task_filter("all"))
     btn_filter_active = ft.OutlinedButton("النشطة", on_click=lambda e: set_task_filter("active"))
     btn_filter_completed = ft.OutlinedButton("المكتملة", on_click=lambda e: set_task_filter("completed"))
@@ -360,15 +357,15 @@ def main(page: ft.Page):
         padding=5
     )
 
-    # --- ج) واجهة المصروفات مع الفئات ---
+    # --- ج) واجهة المصروفات مع الفئات المتقدمة ---
     expenses_list = ft.Column(spacing=8)
     expense_desc = ft.TextField(hint_text="وصف المصروف...", expand=True, border_radius=10, border_color=ft.Colors.BLUE_400, on_submit=lambda e: add_expense(e))
-    expense_amount = ft.TextField(hint_text="المبلغ", width=100, keyboard_type=ft.KeyboardType.NUMBER, border_radius=10, border_color=ft.Colors.BLUE_400, on_submit=lambda e: add_expense(e))
+    expense_amount = ft.TextField(hint_text="المبلغ", width=95, keyboard_type=ft.KeyboardType.NUMBER, border_radius=10, border_color=ft.Colors.BLUE_400, on_submit=lambda e: add_expense(e))
     
     category_dropdown = ft.Dropdown(
         label="التصنيف",
         value="طعام 🍔",
-        width=130,
+        width=125,
         border_radius=10,
         options=[
             ft.dropdown.Option("طعام 🍔"),
@@ -512,7 +509,7 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ أثناء التصدير: {ex}", is_error=True)
 
-    # نافذة الإحصائيات المتقدمة
+    # لوحة الإحصائيات مع الرسم البياني التفاعلي المرئي (Bar Chart Simulation)
     def open_analytics_dlg(e):
         conn = sqlite3.connect("data.db")
         cur = conn.cursor()
@@ -522,18 +519,38 @@ def main(page: ft.Page):
         done_t = cur.fetchone()[0]
         cur.execute("SELECT SUM(amount) FROM expenses")
         sum_e = cur.fetchone()[0] or 0.0
+
+        # جلب إجماليات المصاريف بحسب التصنيف للرسم البياني
+        cur.execute("SELECT category, SUM(amount) FROM expenses GROUP BY category")
+        cat_data = cur.fetchall()
         conn.close()
 
         ratio = f"{(done_t / total_t * 100):.1f}%" if total_t > 0 else "0%"
 
+        # بناء أشرطة مرئية احترافية للتصنيفات
+        chart_bars = []
+        if cat_data:
+            chart_bars.append(ft.Text("📊 توزيع المصاريف حسب التصنيف:", weight=ft.FontWeight.BOLD, size=13))
+            for cat, c_sum in cat_data:
+                safe_sum = c_sum if c_sum else 0.0
+                bar_width = int(min(safe_sum * 2, 200)) # تقريب طولي للشريط
+                chart_bars.append(
+                    ft.Row([
+                        ft.Text(f"{cat}:", size=12, width=90),
+                        ft.Container(bgcolor=ft.Colors.BLUE_400, height=14, width=max(bar_width, 10), border_radius=5),
+                        ft.Text(f"{safe_sum:.2f}", size=12, weight=ft.FontWeight.BOLD)
+                    ], spacing=5)
+                )
+        else:
+            chart_bars.append(ft.Text("لا توجد مصروفات مسجلة بعد لعرض المخطط البياني.", italic=True, size=12))
+
         analytics_dlg = ft.AlertDialog(
-            title=ft.Text("📊 لوحة الإحصائيات الشاملة", weight=ft.FontWeight.BOLD),
+            title=ft.Text("📈 لوحة الإحصائيات والمخططات", weight=ft.FontWeight.BOLD),
             content=ft.Column([
-                ft.Text(f"📌 إجمالي المهام المسجلة: {total_t}"),
-                ft.Text(f"✅ المهام المنجزة: {done_t}"),
-                ft.Text(f"📈 نسبة الإنجاز: {ratio}"),
+                ft.Text(f"📌 إجمالي المهام: {total_t} | المنجزة: {done_t} ({ratio})", size=13),
+                ft.Text(f"💰 إجمالي المصاريف: {sum_e:.2f} ريال", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600, size=15),
                 ft.Divider(),
-                ft.Text(f"💰 إجمالي المصاريف: {sum_e:.2f} ريال", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600),
+                ft.Column(chart_bars, spacing=8)
             ], tight=True, spacing=10),
             actions=[ft.TextButton("إغلاق", on_click=lambda e: setattr(analytics_dlg, 'open', False) or page.update())]
         )
@@ -555,7 +572,7 @@ def main(page: ft.Page):
         padding=5
     )
 
-    # --- د) أزرار التبديل وأزرار الخدمات الإضافية ---
+    # --- د) أزرار التبديل والأدوات العليا ---
     content_area = ft.Container(content=tasks_view_container, expand=True)
 
     btn_tasks_tab = ft.ElevatedButton(
@@ -593,7 +610,7 @@ def main(page: ft.Page):
 
     main_layout = ft.Column(
         [
-            # بطاقات الإحصائيات العلوية
+            # البطاقات العلوية الإحصائية (المهام في اليمين، المصاريف في اليسار حسب طلبك)
             ft.Row([
                 ft.Card(
                     content=ft.Container(
@@ -617,9 +634,9 @@ def main(page: ft.Page):
                 ),
             ], alignment=ft.MainAxisAlignment.CENTER),
 
-            # أزرار الأدوات الإضافية (الإحصائيات والتصدير)
+            # أزرار الأدوات الاحترافية المتقدمة
             ft.Row([
-                ft.OutlinedButton("📊 لوحة الإحصائيات", icon=ft.Icons.ANALYTICS, on_click=open_analytics_dlg),
+                ft.OutlinedButton("📊 المخططات والإحصائيات", icon=ft.Icons.BAR_CHART, on_click=open_analytics_dlg),
                 ft.OutlinedButton("📁 تصدير النسخة (CSV)", icon=ft.Icons.DOWNLOAD, on_click=export_data_to_csv),
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
 
