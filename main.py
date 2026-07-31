@@ -138,7 +138,6 @@ def main(page: ft.Page):
             load_tasks()
             show_snack(f"📌 تمت إضافة المهمة بنجاح!")
 
-    # حقل إدخال المهمة مع تفعيل زر Enter (on_submit)
     task_input = ft.TextField(
         hint_text="أدخل مهمة جديدة...", 
         expand=True, 
@@ -320,7 +319,6 @@ def main(page: ft.Page):
             except ValueError:
                 pass
 
-    # حقول إدخال المصروفات مع تفعيل زر Enter (on_submit)
     expense_desc = ft.TextField(
         hint_text="وصف المصروف...", 
         expand=True, 
@@ -471,12 +469,13 @@ def main(page: ft.Page):
 
     main_layout = ft.Column(
         [
+            # بطاقات الإحصائيات العلوية (تم عكس مكانها: المهام في اليمين، المصاريف في اليسار)
             ft.Row([
                 ft.Card(
                     content=ft.Container(
                         content=ft.Column([
-                            ft.Text("إجمالي المصاريف", size=12, color=ft.Colors.GREY_700),
-                            total_expenses_card_text
+                            ft.Text("المهام المتبقية", size=12, color=ft.Colors.GREY_700),
+                            remaining_tasks_card_text
                         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                         padding=12, width=165
                     ),
@@ -485,8 +484,8 @@ def main(page: ft.Page):
                 ft.Card(
                     content=ft.Container(
                         content=ft.Column([
-                            ft.Text("المهام المتبقية", size=12, color=ft.Colors.GREY_700),
-                            remaining_tasks_card_text
+                            ft.Text("إجمالي المصاريف", size=12, color=ft.Colors.GREY_700),
+                            total_expenses_card_text
                         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                         padding=12, width=165
                     ),
