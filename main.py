@@ -42,9 +42,6 @@ def init_db():
 
 init_db()
 
-# تعريف FilePicker بشكل عام لتجنب مشاكل الـ Overlay
-file_picker_restore = ft.FilePicker()
-
 # --- 2. واجهة التطبيق الرئيسية ---
 def main(page: ft.Page):
     page.title = "منظّم يومك الاحترافي 🎯"
@@ -56,8 +53,12 @@ def main(page: ft.Page):
         current_locale=ft.Locale("ar")
     )
 
-    # إضافة الـ FilePicker لعنصر الـ overlay الخاص بالصفحة فقط
-    page.overlay.append(file_picker_restore)
+    # التعريفات الخاصة بالـ Pickers وإضافتها حصرياً للـ overlay
+    file_picker_restore = ft.FilePicker()
+    date_picker = ft.DatePicker(confirm_text="موافق", cancel_text="إلغاء")
+    time_picker = ft.TimePicker(confirm_text="موافق", cancel_text="إلغاء")
+    
+    page.overlay.extend([file_picker_restore, date_picker, time_picker])
 
     def show_snack(message, icon=ft.Icons.CHECK_CIRCLE, is_error=False):
         page.snack_bar = ft.SnackBar(
@@ -154,7 +155,7 @@ def main(page: ft.Page):
         remaining_tasks_card_text.value = str(rem_tasks)
         page.update()
 
-    # --- ميزة تصدير تقرير PDF ---
+    # --- تصدير تقرير PDF ---
     def export_to_pdf(e):
         try:
             pdf = FPDF()
@@ -194,7 +195,7 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ أثناء التصدير: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
-    # --- ميزة النسخ الاحتياطي واستعادة البيانات ---
+    # --- النسخ الاحتياطي واستعادة البيانات ---
     def backup_database(e):
         try:
             if not os.path.exists("data.db"):
@@ -223,7 +224,7 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"فشلت الاستعادة: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
-    # --- نافذة قسم التحليلات والتقارير ---
+    # --- قسم التحليلات والتقارير ---
     analytics_content = ft.Column(spacing=15)
 
     def load_analytics():
@@ -356,9 +357,8 @@ def main(page: ft.Page):
             time_button_text.value = f"⏰ {selected_time_str['time']}"
             page.update()
 
-    date_picker = ft.DatePicker(on_change=on_date_change, confirm_text="موافق", cancel_text="إلغاء")
-    time_picker = ft.TimePicker(on_change=on_time_change, confirm_text="موافق", cancel_text="إلغاء")
-    page.overlay.extend([date_picker, time_picker])
+    date_picker.on_change = on_date_change
+    time_picker.on_change = on_time_change
 
     edit_task_id = {"id": None}
     edit_task_input = ft.TextField(label="تعديل نص المهمة", on_submit=lambda e: save_edited_task(e))
@@ -540,7 +540,7 @@ def main(page: ft.Page):
             ft.dropdown.Option("مواصلات 🚗"),
             ft.dropdown.Option("فواتير 💡"),
             ft.dropdown.Option("تسوق 🛍️"),
-             ft.dropdown.Option("مصروف كلية"),
+            ft.dropdown.Option("مصروف كلية"),
             ft.dropdown.Option("أخرى 📦"),
         ]
     )
@@ -688,7 +688,6 @@ def main(page: ft.Page):
 
     main_layout = ft.Column(
         [
-            # تم ضبط البطاقات لتكون بجانب بعضها وفي المنتصف تماماً
             ft.Row([
                 ft.Card(
                     content=ft.Container(
