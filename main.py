@@ -281,7 +281,7 @@ def main(page: ft.Page):
         analytics_content.controls.append(
             ft.Divider(height=10)
         )
-        # أزرار التصدير، النسخ الاحتياطي، والاستعادة المتكاملة
+        
         analytics_content.controls.append(
             ft.Row([
                 ft.ElevatedButton("📄 تصدير PDF", icon=ft.Icons.DOWNLOAD, on_click=export_to_pdf, bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE),
