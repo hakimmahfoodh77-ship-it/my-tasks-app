@@ -732,4 +732,4 @@ def main(page: ft.Page):
     load_tasks()
     load_expenses()
 
-ft.run(target=main)
+ft.run(main)
