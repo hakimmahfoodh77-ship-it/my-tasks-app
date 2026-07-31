@@ -42,6 +42,9 @@ def init_db():
 
 init_db()
 
+# تعريف FilePicker بشكل عام لتجنب مشاكل الـ Overlay
+file_picker_restore = ft.FilePicker()
+
 # --- 2. واجهة التطبيق الرئيسية ---
 def main(page: ft.Page):
     page.title = "منظّم يومك الاحترافي 🎯"
@@ -52,6 +55,9 @@ def main(page: ft.Page):
         supported_locales=[ft.Locale("ar")],
         current_locale=ft.Locale("ar")
     )
+
+    # إضافة الـ FilePicker لعنصر الـ overlay الخاص بالصفحة
+    page.overlay.append(file_picker_restore)
 
     def show_snack(message, icon=ft.Icons.CHECK_CIRCLE, is_error=False):
         page.snack_bar = ft.SnackBar(
@@ -154,31 +160,31 @@ def main(page: ft.Page):
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", "B", 16)
-            pdf.cell(200, 10, txt="Monazzam Yawmak - Daily Report", new_x="LMARGIN", new_y="NEXT", align="C")
+            pdf.cell(200, 10, text="Monazzam Yawmak - Daily Report", new_x="LMARGIN", new_y="NEXT", align="C")
             pdf.set_font("Arial", "", 12)
-            pdf.cell(200, 10, txt=f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}", new_x="LMARGIN", new_y="NEXT", align="C")
+            pdf.cell(200, 10, text=f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}", new_x="LMARGIN", new_y="NEXT", align="C")
             pdf.ln(10)
 
             conn = sqlite3.connect("data.db")
             cur = conn.cursor()
 
             pdf.set_font("Arial", "B", 14)
-            pdf.cell(200, 10, txt="Tasks Summary:", new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(200, 10, text="Tasks Summary:", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Arial", "", 11)
             cur.execute("SELECT title, done, due_date FROM tasks")
             for title, done, due in cur.fetchall():
                 status = "[Done]" if done else "[Pending]"
                 line = f"- {status} {title} (Due: {due if due else 'None'})"
-                pdf.cell(200, 8, txt=line, new_x="LMARGIN", new_y="NEXT")
+                pdf.cell(200, 8, text=line, new_x="LMARGIN", new_y="NEXT")
 
             pdf.ln(5)
             pdf.set_font("Arial", "B", 14)
-            pdf.cell(200, 10, txt="Expenses Summary:", new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(200, 10, text="Expenses Summary:", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Arial", "", 11)
             cur.execute("SELECT description, amount, category FROM expenses")
             for desc, amt, cat in cur.fetchall():
                 line = f"- {cat}: {desc} -> {amt:.2f} SAR"
-                pdf.cell(200, 8, txt=line, new_x="LMARGIN", new_y="NEXT")
+                pdf.cell(200, 8, text=line, new_x="LMARGIN", new_y="NEXT")
 
             conn.close()
             
@@ -201,23 +207,19 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ في النسخ الاحتياطي: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
-    # تعريف FilePicker وإضافته حصرياً إلى page.overlay لتجنب ظهور أي مربعات حمراء
-    file_picker_restore = ft.FilePicker()
-    page.overlay.append(file_picker_restore)
-
     async def restore_database(e):
         try:
-            result = await file_picker_restore.pick_files(
-                allowed_extensions=["db"], 
-                dialog_title="اختر ملف النسخة الاحتياطية"
-            )
-            if result and result.files and len(result.files) > 0:
-                source_path = result.files[0].path
-                shutil.copy(source_path, "data.db")
-                load_tasks()
-                load_expenses()
-                load_analytics()
-                show_snack("تمت استعادة البيانات بنجاح! 🎉", icon=ft.Icons.CLOUD_DONE)
+            def on_file_picked(e: ft.FilePickerResultEvent):
+                if e.files and len(e.files) > 0:
+                    source_path = e.files[0].path
+                    shutil.copy(source_path, "data.db")
+                    load_tasks()
+                    load_expenses()
+                    load_analytics()
+                    show_snack("تمت استعادة البيانات بنجاح! 🎉", icon=ft.Icons.CLOUD_DONE)
+
+            file_picker_restore.on_result = on_file_picked
+            file_picker_restore.pick_files(allowed_extensions=["db"], dialog_title="اختر ملف النسخة الاحتياطية")
         except Exception as ex:
             show_snack(f"فشلت الاستعادة: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
@@ -727,7 +729,6 @@ def main(page: ft.Page):
         animate_opacity=400,
     )
 
-    # تم تمرير شاشات الترحيب والواجهة فقط بدون تمرير الـ file_picker للمتصفح المرئي
     page.add(welcome_screen, main_layout)
     load_tasks()
     load_expenses()
