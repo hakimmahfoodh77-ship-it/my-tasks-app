@@ -90,7 +90,7 @@ def main(page: ft.Page):
         expand=True,
     )
 
-    # إحصائيات علوية جذابة
+    # إحصائيات علوية
     total_expenses_card_text = ft.Text("0.00 ريال", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600)
     remaining_tasks_card_text = ft.Text("0", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
 
@@ -410,7 +410,7 @@ def main(page: ft.Page):
         padding=5
     )
 
-    # --- د) تصميم أزرار التبديل الجذابة (التي توضح القسم النشط تماماً) ---
+    # --- د) أزرار التبديل (تتغير لونا بالكامل حسب القسم النشط) ---
     content_area = ft.Container(content=tasks_view_container, expand=True)
 
     btn_tasks_tab = ft.ElevatedButton(
@@ -420,32 +420,32 @@ def main(page: ft.Page):
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=15)
     )
     
-    btn_expenses_tab = ft.OutlinedButton(
+    btn_expenses_tab = ft.ElevatedButton(
         "💰 المصروفات",
+        bgcolor=ft.Colors.GREY_200,
+        color=ft.Colors.BLACK87,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=15)
     )
 
     def show_tasks_tab(e):
-        # جعل زر المهام مميز وبارز
+        # تفعيل زر المهام
         btn_tasks_tab.bgcolor = ft.Colors.BLUE_700
         btn_tasks_tab.color = ft.Colors.WHITE
-        btn_tasks_tab.style = ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=15)
         
-        # جعل زر المصروفات عادي
-        btn_expenses_tab.bgcolor = None
+        # إلغاء تفعيل زر المصروفات
+        btn_expenses_tab.bgcolor = ft.Colors.GREY_200
         btn_expenses_tab.color = ft.Colors.BLACK87
         
         content_area.content = tasks_view_container
         page.update()
 
     def show_expenses_tab(e):
-        # جعل زر المصروفات مميز وبارز
+        # تفعيل زر المصروفات
         btn_expenses_tab.bgcolor = ft.Colors.BLUE_700
         btn_expenses_tab.color = ft.Colors.WHITE
-        btn_expenses_tab.style = ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=15)
         
-        # جعل زر المهام عادي
-        btn_tasks_tab.bgcolor = None
+        # إلغاء تفعيل زر المهام
+        btn_tasks_tab.bgcolor = ft.Colors.GREY_200
         btn_tasks_tab.color = ft.Colors.BLACK87
         
         content_area.content = expenses_view_container
@@ -454,10 +454,9 @@ def main(page: ft.Page):
     btn_tasks_tab.on_click = show_tasks_tab
     btn_expenses_tab.on_click = show_expenses_tab
 
-    # التخطيط الرئيسي مع دعم السحب (Scrollable) لجميع العناصر والإحصائيات
     main_layout = ft.Column(
         [
-            # بطاقات الإحصائيات العلوية بتصميم أنيق
+            # بطاقات الإحصائيات العلوية
             ft.Row([
                 ft.Card(
                     content=ft.Container(
@@ -483,7 +482,7 @@ def main(page: ft.Page):
 
             ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
 
-            # أزرار التبديل البارزة (تعرف منها أين أنت فوراً)
+            # أزرار التبديل الديناميكية
             ft.Row([
                 btn_tasks_tab,
                 btn_expenses_tab,
@@ -491,7 +490,6 @@ def main(page: ft.Page):
 
             ft.Divider(height=15),
             
-            # منطقة المحتوى المتغيرة
             content_area
         ],
         scroll=ft.ScrollMode.AUTO,
