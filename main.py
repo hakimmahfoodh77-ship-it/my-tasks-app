@@ -112,7 +112,40 @@ def main(page: ft.Page):
 
     # --- ب) واجهة المهام ---
     tasks_list = ft.Column(spacing=8)
-    task_input = ft.TextField(hint_text="أدخل مهمة جديدة...", expand=True, border_radius=10, border_color=ft.Colors.BLUE_400)
+
+    def add_task(e):
+        if task_input.value and task_input.value.strip():
+            title = task_input.value.strip()
+            now_str = datetime.now().strftime("%Y-%m-%d | %I:%M %p")
+            
+            due_date_str = ""
+            if selected_date_str["date"] or selected_time_str["time"]:
+                d = selected_date_str["date"] if selected_date_str["date"] else "اليوم"
+                t = selected_time_str["time"] if selected_time_str["time"] else ""
+                due_date_str = f"{d} {t}".strip()
+
+            conn = sqlite3.connect("data.db")
+            cursor = conn.cursor()
+            cursor.execute("INSERT INTO tasks (title, done, created_at, due_date) VALUES (?, 0, ?, ?)", (title, now_str, due_date_str))
+            conn.commit()
+            conn.close()
+
+            task_input.value = ""
+            selected_date_str["date"] = ""
+            selected_time_str["time"] = ""
+            date_button_text.value = "التاريخ"
+            time_button_text.value = "الوقت"
+            load_tasks()
+            show_snack(f"📌 تمت إضافة المهمة بنجاح!")
+
+    # حقل إدخال المهمة مع تفعيل زر Enter (on_submit)
+    task_input = ft.TextField(
+        hint_text="أدخل مهمة جديدة...", 
+        expand=True, 
+        border_radius=10, 
+        border_color=ft.Colors.BLUE_400,
+        on_submit=add_task
+    )
     
     selected_date_str = {"date": ""}
     selected_time_str = {"time": ""}
@@ -154,7 +187,7 @@ def main(page: ft.Page):
         page.update()
 
     edit_task_id = {"id": None}
-    edit_task_input = ft.TextField(label="تعديل نص المهمة")
+    edit_task_input = ft.TextField(label="تعديل نص المهمة", on_submit=lambda e: save_edited_task(e))
 
     def save_edited_task(e):
         if edit_task_id["id"] and edit_task_input.value.strip():
@@ -248,31 +281,6 @@ def main(page: ft.Page):
         update_stats()
         page.update()
 
-    def add_task(e):
-        if task_input.value and task_input.value.strip():
-            title = task_input.value.strip()
-            now_str = datetime.now().strftime("%Y-%m-%d | %I:%M %p")
-            
-            due_date_str = ""
-            if selected_date_str["date"] or selected_time_str["time"]:
-                d = selected_date_str["date"] if selected_date_str["date"] else "اليوم"
-                t = selected_time_str["time"] if selected_time_str["time"] else ""
-                due_date_str = f"{d} {t}".strip()
-
-            conn = sqlite3.connect("data.db")
-            cursor = conn.cursor()
-            cursor.execute("INSERT INTO tasks (title, done, created_at, due_date) VALUES (?, 0, ?, ?)", (title, now_str, due_date_str))
-            conn.commit()
-            conn.close()
-
-            task_input.value = ""
-            selected_date_str["date"] = ""
-            selected_time_str["time"] = ""
-            date_button_text.value = "التاريخ"
-            time_button_text.value = "الوقت"
-            load_tasks()
-            show_snack(f"📌 تمت إضافة المهمة بنجاح!")
-
     tasks_view_container = ft.Container(
         content=ft.Column([
             ft.Row([
@@ -291,12 +299,47 @@ def main(page: ft.Page):
 
     # --- ج) واجهة المصروفات ---
     expenses_list = ft.Column(spacing=8)
-    expense_desc = ft.TextField(hint_text="وصف المصروف...", expand=True, border_radius=10, border_color=ft.Colors.BLUE_400)
-    expense_amount = ft.TextField(hint_text="المبلغ", width=110, keyboard_type=ft.KeyboardType.NUMBER, border_radius=10, border_color=ft.Colors.BLUE_400)
+
+    def add_expense(e):
+        if expense_desc.value and expense_amount.value and expense_desc.value.strip() and expense_amount.value.strip():
+            try:
+                desc = expense_desc.value.strip()
+                amt = float(expense_amount.value.strip())
+                now_str = datetime.now().strftime("%Y-%m-%d | %I:%M %p")
+
+                conn = sqlite3.connect("data.db")
+                cursor = conn.cursor()
+                cursor.execute("INSERT INTO expenses (description, amount, created_at) VALUES (?, ?, ?)", (desc, amt, now_str))
+                conn.commit()
+                conn.close()
+
+                expense_desc.value = ""
+                expense_amount.value = ""
+                load_expenses()
+                show_snack("💰 تمت إضافة المصروف بنجاح")
+            except ValueError:
+                pass
+
+    # حقول إدخال المصروفات مع تفعيل زر Enter (on_submit)
+    expense_desc = ft.TextField(
+        hint_text="وصف المصروف...", 
+        expand=True, 
+        border_radius=10, 
+        border_color=ft.Colors.BLUE_400,
+        on_submit=add_expense
+    )
+    expense_amount = ft.TextField(
+        hint_text="المبلغ", 
+        width=110, 
+        keyboard_type=ft.KeyboardType.NUMBER, 
+        border_radius=10, 
+        border_color=ft.Colors.BLUE_400,
+        on_submit=add_expense
+    )
 
     edit_expense_id = {"id": None}
     edit_exp_desc = ft.TextField(label="تعديل الوصف")
-    edit_exp_amt = ft.TextField(label="تعديل المبلغ", keyboard_type=ft.KeyboardType.NUMBER)
+    edit_exp_amt = ft.TextField(label="تعديل المبلغ", keyboard_type=ft.KeyboardType.NUMBER, on_submit=lambda e: save_edited_expense(e))
 
     def save_edited_expense(e):
         if edit_expense_id["id"] and edit_exp_desc.value.strip() and edit_exp_amt.value.strip():
@@ -377,26 +420,6 @@ def main(page: ft.Page):
         update_stats()
         page.update()
 
-    def add_expense(e):
-        if expense_desc.value and expense_amount.value and expense_desc.value.strip() and expense_amount.value.strip():
-            try:
-                desc = expense_desc.value.strip()
-                amt = float(expense_amount.value.strip())
-                now_str = datetime.now().strftime("%Y-%m-%d | %I:%M %p")
-
-                conn = sqlite3.connect("data.db")
-                cursor = conn.cursor()
-                cursor.execute("INSERT INTO expenses (description, amount, created_at) VALUES (?, ?, ?)", (desc, amt, now_str))
-                conn.commit()
-                conn.close()
-
-                expense_desc.value = ""
-                expense_amount.value = ""
-                load_expenses()
-                show_snack("💰 تمت إضافة المصروف بنجاح")
-            except ValueError:
-                pass
-
     expenses_view_container = ft.Container(
         content=ft.Column([
             ft.Row([
@@ -410,7 +433,7 @@ def main(page: ft.Page):
         padding=5
     )
 
-    # --- د) أزرار التبديل (تتغير لونا بالكامل حسب القسم النشط) ---
+    # --- د) أزرار التبديل ---
     content_area = ft.Container(content=tasks_view_container, expand=True)
 
     btn_tasks_tab = ft.ElevatedButton(
@@ -428,26 +451,18 @@ def main(page: ft.Page):
     )
 
     def show_tasks_tab(e):
-        # تفعيل زر المهام
         btn_tasks_tab.bgcolor = ft.Colors.BLUE_700
         btn_tasks_tab.color = ft.Colors.WHITE
-        
-        # إلغاء تفعيل زر المصروفات
         btn_expenses_tab.bgcolor = ft.Colors.GREY_200
         btn_expenses_tab.color = ft.Colors.BLACK87
-        
         content_area.content = tasks_view_container
         page.update()
 
     def show_expenses_tab(e):
-        # تفعيل زر المصروفات
         btn_expenses_tab.bgcolor = ft.Colors.BLUE_700
         btn_expenses_tab.color = ft.Colors.WHITE
-        
-        # إلغاء تفعيل زر المهام
         btn_tasks_tab.bgcolor = ft.Colors.GREY_200
         btn_tasks_tab.color = ft.Colors.BLACK87
-        
         content_area.content = expenses_view_container
         page.update()
 
@@ -456,7 +471,6 @@ def main(page: ft.Page):
 
     main_layout = ft.Column(
         [
-            # بطاقات الإحصائيات العلوية
             ft.Row([
                 ft.Card(
                     content=ft.Container(
@@ -482,7 +496,6 @@ def main(page: ft.Page):
 
             ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
 
-            # أزرار التبديل الديناميكية
             ft.Row([
                 btn_tasks_tab,
                 btn_expenses_tab,
