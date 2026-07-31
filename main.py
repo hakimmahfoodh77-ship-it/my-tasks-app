@@ -335,11 +335,11 @@ def main(page: ft.Page):
                 padding=10,
             )
 
-            # التعديل تم هنا (استخدام ft.padding.only بدلاً من ft.padding.symmetric)
+            # استخدام حشو رقمي مباشر لتفادي أي خطأ في الدوال الخارجية
             dismissible_card = ft.Dismissible(
                 content=ft.Card(content=task_content),
-                background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.Alignment(0.8, 0), padding=ft.padding.only(left=20, right=20), content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
-                secondary_background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.Alignment(-0.8, 0), padding=ft.padding.only(left=20, right=20), content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
+                background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.Alignment(0.8, 0), padding=20, content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
+                secondary_background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.Alignment(-0.8, 0), padding=20, content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
                 on_dismiss=lambda e, tid=task_id: delete_task_item(None, tid)
             )
 
@@ -587,13 +587,13 @@ def main(page: ft.Page):
                 ),
             ], alignment=ft.MainAxisAlignment.CENTER),
 
-            # التعديل تم هنا أيضاً (استخدام ft.padding.only)
+            # استخدام حشو رقمي مباشر لتفادي المشاكل
             ft.Container(
                 content=ft.Column([
                     progress_text,
                     progress_bar
                 ], horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
-                padding=ft.padding.only(top=5, bottom=5),
+                padding=5,
                 alignment=ft.Alignment(0, 0)
             ),
 
