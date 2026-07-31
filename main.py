@@ -42,7 +42,6 @@ def init_db():
         )
     """)
     
-    # إدخال التصنيفات الافتراضية إن لم تكن موجودة
     default_cats = ["طعام 🍔", "مواصلات 🚗", "فواتير 💡", "تسوق 🛍️", "مصروف كلية", "أخرى 📦"]
     for cat in default_cats:
         try:
@@ -102,11 +101,19 @@ def main(page: ft.Page):
         on_click=toggle_theme
     )
 
+    # سيتم تعريف زر الإعدادات العلوي لاحقاً لربطه بالانتقال للشاشة
+    settings_top_btn = ft.IconButton(
+        icon=ft.Icons.SETTINGS,
+        icon_color=ft.Colors.WHITE,
+        tooltip="الإعدادات",
+        on_click=lambda e: show_settings_tab(None)
+    )
+
     page.appbar = ft.AppBar(
         title=ft.Text("منظّم يومك الاحترافي 🎯", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
         center_title=True,
         bgcolor=ft.Colors.BLUE_700,
-        actions=[theme_btn]
+        actions=[settings_top_btn, theme_btn]
     )
 
     def enter_app(e):
@@ -220,7 +227,7 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ أثناء التصدير: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
-    # --- قسم التحليلات والرسوم البيانية ---
+    # --- قسم التحليلات والرسوم البيانية (الآمن) ---
     analytics_content = ft.Column(spacing=15)
 
     def load_analytics():
@@ -257,7 +264,7 @@ def main(page: ft.Page):
         )
 
         analytics_content.controls.append(
-            ft.Text("📈 الرسوم البيانية لتوزيع المصروفات:", weight=ft.FontWeight.BOLD, size=15)
+            ft.Text("📈 نسب ومؤشرات المصروفات حسب التصنيف:", weight=ft.FontWeight.BOLD, size=15)
         )
 
         if not data:
@@ -265,47 +272,32 @@ def main(page: ft.Page):
                 ft.Text("لا توجد مصروفات مسجلة حالياً لعرض التحليلات.", color=ft.Colors.GREY_500)
             )
         else:
-            chart_sections = []
             colors_list = [ft.Colors.BLUE_400, ft.Colors.RED_400, ft.Colors.GREEN_400, ft.Colors.AMBER_400, ft.Colors.PURPLE_400, ft.Colors.TEAL_400]
-            
             total_sum = sum([item[1] for item in data]) if data else 1
 
             for idx, (cat, total, count) in enumerate(data):
                 percentage = (total / total_sum) * 100
                 c_color = colors_list[idx % len(colors_list)]
                 
-                chart_sections.append(
-                    ft.PieChartSection(
-                        percentage,
-                        title=f"{percentage:.1f}%",
-                        title_style=ft.TextStyle(size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                        color=c_color,
-                        radius=50
-                    )
-                )
-
+                # استخدام مؤشر شريطي بصري متطور وآمن تماماً
                 analytics_content.controls.append(
                     ft.Card(
                         content=ft.Container(
-                            content=ft.Row([
-                                ft.Container(width=15, height=15, bgcolor=c_color, border_radius=3),
-                                ft.Text(f"{cat}", weight=ft.FontWeight.BOLD, expand=True),
-                                ft.Text(f"المبلغ: {total:.2f} ريال ({percentage:.1f}%)", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_500),
-                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                            content=ft.Column([
+                                ft.Row([
+                                    ft.Row([
+                                        ft.Container(width=12, height=12, bgcolor=c_color, border_radius=3),
+                                        ft.Text(f"{cat}", weight=ft.FontWeight.BOLD),
+                                    ], spacing=8),
+                                    ft.Text(f"{total:.2f} ريال ({percentage:.1f}%)", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_500),
+                                ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                                ft.ProgressBar(value=percentage / 100.0, color=c_color, bgcolor=ft.Colors.GREY_300, height=8),
+                                ft.Text(f"عدد المعاملات: {count}", size=11, color=ft.Colors.GREY_600)
+                            ], spacing=6),
                             padding=12
                         )
                     )
                 )
-
-            analytics_content.controls.insert(2, ft.Container(
-                content=ft.PieChart(
-                    sections=chart_sections,
-                    sections_space=2,
-                    center_space_radius=30,
-                    height=180
-                ),
-                padding=10
-            ))
 
         analytics_content.controls.append(
             ft.Divider(height=10)
@@ -744,32 +736,27 @@ def main(page: ft.Page):
 
     content_area = ft.Container(content=tasks_view_container, expand=True)
 
+    # أزرار التنقل السفلية الرئيسية (تمت ازالة زر الإعدادات من هنا لأنه أصبح في الأعلى)
     btn_tasks_tab = ft.Button(
         content=ft.Text("📋 المهام", color=ft.Colors.WHITE),
         bgcolor=ft.Colors.BLUE_700,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=10)
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
     )
     
     btn_expenses_tab = ft.Button(
         content=ft.Text("💰 المصروفات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
         bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=10)
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
     )
 
     btn_analytics_tab = ft.Button(
         content=ft.Text("📊 التحليلات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
         bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=10)
-    )
-
-    btn_settings_tab = ft.Button(
-        content=ft.Text("⚙️ الإعدادات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
-        bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=10)
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
     )
 
     def update_tab_buttons_colors(selected_btn):
-        for b in [btn_tasks_tab, btn_expenses_tab, btn_analytics_tab, btn_settings_tab]:
+        for b in [btn_tasks_tab, btn_expenses_tab, btn_analytics_tab]:
             if b == selected_btn:
                 b.bgcolor = ft.Colors.BLUE_700
                 b.content.color = ft.Colors.WHITE
@@ -794,14 +781,16 @@ def main(page: ft.Page):
         page.update()
 
     def show_settings_tab(e):
-        update_tab_buttons_colors(btn_settings_tab)
+        # عندما يتم الضغط على زر الإعدادات العلوي، يتم إلفاء تحديد الأزرار السفلية
+        for b in [btn_tasks_tab, btn_expenses_tab, btn_analytics_tab]:
+            b.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
+            b.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
         content_area.content = settings_view_container
         page.update()
 
     btn_tasks_tab.on_click = show_tasks_tab
     btn_expenses_tab.on_click = show_expenses_tab
     btn_analytics_tab.on_click = show_analytics_tab
-    btn_settings_tab.on_click = show_settings_tab
 
     def refresh_all_views():
         load_tasks()
@@ -839,8 +828,7 @@ def main(page: ft.Page):
                 btn_tasks_tab,
                 btn_expenses_tab,
                 btn_analytics_tab,
-                btn_settings_tab,
-            ], alignment=ft.MainAxisAlignment.CENTER, spacing=5),
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
 
             ft.Divider(height=15),
             
