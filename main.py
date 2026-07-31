@@ -315,7 +315,7 @@ def main(page: ft.Page):
                 expense_desc.value = ""
                 expense_amount.value = ""
                 load_expenses()
-                show_snack("💰 تمت إضافة المصروف بنجاح")
+                show_snack(" تمت إضافة المصروف بنجاح")
             except ValueError:
                 pass
 
@@ -442,7 +442,7 @@ def main(page: ft.Page):
     )
     
     btn_expenses_tab = ft.ElevatedButton(
-        "💰 المصروفات",
+        "المصروفات",
         bgcolor=ft.Colors.GREY_200,
         color=ft.Colors.BLACK87,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=15)
