@@ -167,7 +167,6 @@ def main(page: ft.Page):
         try:
             pdf = FPDF()
             pdf.add_page()
-            # استخدام خط افتراضي يدعم الحروف الأساسية أو طباعة العناوين بوضوح
             pdf.set_font("Arial", "B", 16)
             pdf.cell(200, 10, txt="Monazzam Yawmak - Daily Report", ln=True, align="C")
             pdf.set_font("Arial", "", 12)
@@ -205,7 +204,7 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ أثناء التصدير: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
-    # --- نافذة قسم التحليلات والرسوم البيانية ---
+    # --- نافذة قسم التحليلات والتقارير ---
     analytics_content = ft.Column(spacing=15)
 
     def load_analytics():
@@ -213,41 +212,62 @@ def main(page: ft.Page):
         conn = sqlite3.connect("data.db")
         cur = conn.cursor()
         
-        # جلب إجماليات المصروفات حسب التصنيف
-        cur.execute("SELECT category, SUM(amount) FROM expenses GROUP BY category")
+        cur.execute("SELECT category, SUM(amount), COUNT(*) FROM expenses GROUP BY category")
         data = cur.fetchall()
+
+        cur.execute("SELECT COUNT(*), SUM(CASE WHEN done = 1 THEN 1 ELSE 0 END) FROM tasks")
+        task_stats = cur.fetchone()
         conn.close()
 
+        total_tasks_count = task_stats[0] if task_stats[0] else 0
+        done_tasks_count = task_stats[1] if task_stats[1] else 0
+
         analytics_content.controls.append(
-            ft.Text("📊 التحليلات البيانية والمالية", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
+            ft.Text("📊 لوحة التحليلات والإحصائيات الشاملة", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
+        )
+
+        # بطاقة ملخص عام للإنتاجية
+        analytics_content.controls.append(
+            ft.Card(
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Text("ملخص إنجاز المهام", weight=ft.FontWeight.BOLD, size=14),
+                        ft.Text(f"إجمالي المهام المسجلة: {total_tasks_count}"),
+                        ft.Text(f"المهام المنجزة: {done_tasks_count}"),
+                        ft.Text(f"المهام المتبقية: {total_tasks_count - done_tasks_count}"),
+                    ], spacing=5),
+                    padding=15
+                )
+            )
+        )
+
+        analytics_content.controls.append(
+            ft.Text("💰 تفصيل المصروفات حسب التصنيف:", weight=ft.FontWeight.BOLD, size=15)
         )
 
         if not data:
             analytics_content.controls.append(
-                ft.Text("لا توجد مصروفات كافية لعرض الرسوم البيانية حالياً.", color=ft.Colors.GREY_500)
+                ft.Text("لا توجد مصروفات مسجلة حالياً لعرض التحليلات.", color=ft.Colors.GREY_500)
             )
         else:
-            sections = []
-            colors = [ft.Colors.BLUE_400, ft.Colors.RED_400, ft.Colors.GREEN_400, ft.Colors.AMBER_400, ft.Colors.PURPLE_400]
-            for i, (cat, total) in enumerate(data):
-                sections.append(
-                    ft.PieChartSection(
-                        total,
-                        title=f"{cat}\n({total:.1f})",
-                        title_style=ft.TextStyle(size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
-                        color=colors[i % len(colors)],
-                        radius=80,
+            for cat, total, count in data:
+                analytics_content.controls.append(
+                    ft.Card(
+                        content=ft.Container(
+                            content=ft.Row([
+                                ft.Icon(ft.Icons.CATEGORY, color=ft.Colors.BLUE_400),
+                                ft.Text(f"{cat}", weight=ft.FontWeight.BOLD, expand=True),
+                                ft.Text(f"عدد المعاملات: {count}", size=12, color=ft.Colors.GREY_600),
+                                ft.Text(f"{total:.2f} ريال", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_500),
+                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                            padding=12
+                        )
                     )
                 )
 
-            chart = ft.PieChart(
-                sections=sections,
-                center_space_radius=40,
-                sections_space=2,
-                height=220,
-            )
-            analytics_content.controls.append(chart)
-
+        analytics_content.controls.append(
+            ft.Divider(height=10)
+        )
         analytics_content.controls.append(
             ft.ElevatedButton("📄 تصدير تقرير شامل (PDF)", icon=ft.Icons.DOWNLOAD, on_click=export_to_pdf, bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE)
         )
