@@ -1,6 +1,5 @@
 import flet as ft
 import sqlite3
-import os
 from datetime import datetime
 from fpdf import FPDF
 
@@ -36,6 +35,21 @@ def init_db():
     except sqlite3.OperationalError:
         pass
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS categories (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT UNIQUE
+        )
+    """)
+    
+    # إدخال التصنيفات الافتراضية إن لم تكن موجودة
+    default_cats = ["طعام 🍔", "مواصلات 🚗", "فواتير 💡", "تسوق 🛍️", "مصروف كلية", "أخرى 📦"]
+    for cat in default_cats:
+        try:
+            cursor.execute("INSERT INTO categories (name) VALUES (?)", (cat,))
+        except sqlite3.IntegrityError:
+            pass
+
     conn.commit()
     conn.close()
 
@@ -52,10 +66,8 @@ def main(page: ft.Page):
         current_locale=ft.Locale("ar")
     )
 
-    # التعريفات الخاصة بالـ Pickers الآمنة فقط
     date_picker = ft.DatePicker(confirm_text="موافق", cancel_text="إلغاء")
     time_picker = ft.TimePicker(confirm_text="موافق", cancel_text="إلغاء")
-    
     page.overlay.extend([date_picker, time_picker])
 
     def show_snack(message, icon=ft.Icons.CHECK_CIRCLE, is_error=False):
@@ -80,9 +92,7 @@ def main(page: ft.Page):
             page.theme_mode = ft.ThemeMode.LIGHT
             theme_btn.icon = ft.Icons.DARK_MODE
             theme_btn.icon_color = ft.Colors.WHITE
-        load_tasks()
-        load_expenses()
-        load_analytics()
+        refresh_all_views()
         page.update()
 
     theme_btn = ft.IconButton(
@@ -104,6 +114,7 @@ def main(page: ft.Page):
         welcome_screen.visible = False
         main_layout.visible = True
         main_layout.opacity = 1.0
+        check_due_tasks_notifications()
         page.update()
 
     welcome_screen = ft.Container(
@@ -153,6 +164,22 @@ def main(page: ft.Page):
         remaining_tasks_card_text.value = str(rem_tasks)
         page.update()
 
+    def check_due_tasks_notifications():
+        conn = sqlite3.connect("data.db")
+        cur = conn.cursor()
+        cur.execute("SELECT title, due_date FROM tasks WHERE done = 0 AND due_date != ''")
+        tasks = cur.fetchall()
+        conn.close()
+        
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        due_count = 0
+        for title, due in tasks:
+            if today_str in due:
+                due_count += 1
+        
+        if due_count > 0:
+            show_snack(f"تنبيه: لديك {due_count} مهام مستحقة اليوم!", icon=ft.Icons.NOTIFICATIONS_ACTIVE)
+
     # --- تصدير تقرير PDF ---
     def export_to_pdf(e):
         try:
@@ -193,7 +220,7 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ أثناء التصدير: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
-    # --- قسم التحليلات والتقارير ---
+    # --- قسم التحليلات والرسوم البيانية ---
     analytics_content = ft.Column(spacing=15)
 
     def load_analytics():
@@ -230,7 +257,7 @@ def main(page: ft.Page):
         )
 
         analytics_content.controls.append(
-            ft.Text("💰 تفصيل المصروفات حسب التصنيف:", weight=ft.FontWeight.BOLD, size=15)
+            ft.Text("📈 الرسوم البيانية لتوزيع المصروفات:", weight=ft.FontWeight.BOLD, size=15)
         )
 
         if not data:
@@ -238,20 +265,47 @@ def main(page: ft.Page):
                 ft.Text("لا توجد مصروفات مسجلة حالياً لعرض التحليلات.", color=ft.Colors.GREY_500)
             )
         else:
-            for cat, total, count in data:
+            chart_sections = []
+            colors_list = [ft.Colors.BLUE_400, ft.Colors.RED_400, ft.Colors.GREEN_400, ft.Colors.AMBER_400, ft.Colors.PURPLE_400, ft.Colors.TEAL_400]
+            
+            total_sum = sum([item[1] for item in data]) if data else 1
+
+            for idx, (cat, total, count) in enumerate(data):
+                percentage = (total / total_sum) * 100
+                c_color = colors_list[idx % len(colors_list)]
+                
+                chart_sections.append(
+                    ft.PieChartSection(
+                        percentage,
+                        title=f"{percentage:.1f}%",
+                        title_style=ft.TextStyle(size=12, weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+                        color=c_color,
+                        radius=50
+                    )
+                )
+
                 analytics_content.controls.append(
                     ft.Card(
                         content=ft.Container(
                             content=ft.Row([
-                                ft.Icon(ft.Icons.CATEGORY, color=ft.Colors.BLUE_400),
+                                ft.Container(width=15, height=15, bgcolor=c_color, border_radius=3),
                                 ft.Text(f"{cat}", weight=ft.FontWeight.BOLD, expand=True),
-                                ft.Text(f"عدد المعاملات: {count}", size=12, color=ft.Colors.GREY_600),
-                                ft.Text(f"{total:.2f} ريال", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_500),
+                                ft.Text(f"المبلغ: {total:.2f} ريال ({percentage:.1f}%)", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_500),
                             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                             padding=12
                         )
                     )
                 )
+
+            analytics_content.controls.insert(2, ft.Container(
+                content=ft.PieChart(
+                    sections=chart_sections,
+                    sections_space=2,
+                    center_space_radius=30,
+                    height=180
+                ),
+                padding=10
+            ))
 
         analytics_content.controls.append(
             ft.Divider(height=10)
@@ -492,32 +546,64 @@ def main(page: ft.Page):
         padding=5
     )
 
-    # --- إدارة المصروفات ---
+    # --- إدارة المصروفات والتصنيفات المخصصة ---
     expenses_list = ft.Column(spacing=8)
     expense_desc = ft.TextField(hint_text="وصف المصروف...", expand=True, border_radius=10, border_color=ft.Colors.BLUE_400, on_submit=lambda e: add_expense(e))
     expense_amount = ft.TextField(hint_text="المبلغ", width=95, keyboard_type=ft.KeyboardType.NUMBER, border_radius=10, border_color=ft.Colors.BLUE_400, on_submit=lambda e: add_expense(e))
     
     category_dropdown = ft.Dropdown(
         label="التصنيف",
-        value="طعام 🍔",
         width=125,
         border_radius=10,
-        options=[
-            ft.dropdown.Option("طعام 🍔"),
-            ft.dropdown.Option("مواصلات 🚗"),
-            ft.dropdown.Option("فواتير 💡"),
-            ft.dropdown.Option("تسوق 🛍️"),
-            ft.dropdown.Option("مصروف كلية"),
-            ft.dropdown.Option("أخرى 📦"),
+        options=[]
+    )
+
+    def load_categories_dropdown():
+        conn = sqlite3.connect("data.db")
+        cur = conn.cursor()
+        cur.execute("SELECT name FROM categories")
+        rows = cur.fetchall()
+        conn.close()
+        
+        category_dropdown.options = [ft.dropdown.Option(row[0]) for row in rows]
+        if category_dropdown.options and not category_dropdown.value:
+            category_dropdown.value = rows[0][0]
+        page.update()
+
+    new_cat_input = ft.TextField(label="اسم التصنيف الجديد", border_radius=10)
+
+    def save_new_category(e):
+        if new_cat_input.value and new_cat_input.value.strip():
+            c_name = new_cat_input.value.strip()
+            try:
+                conn = sqlite3.connect("data.db")
+                cur = conn.cursor()
+                cur.execute("INSERT INTO categories (name) VALUES (?)", (c_name,))
+                conn.commit()
+                conn.close()
+                new_cat_input.value = ""
+                new_cat_dlg.open = False
+                load_categories_dropdown()
+                show_snack("تمت إضافة التصنيف بنجاح")
+            except sqlite3.IntegrityError:
+                show_snack("هذا التصنيف موجود مسبقاً!", icon=ft.Icons.ERROR, is_error=True)
+
+    new_cat_dlg = ft.AlertDialog(
+        title=ft.Text("إضافة تصنيف جديد للمصروفات"),
+        content=new_cat_input,
+        actions=[
+            ft.TextButton("إضافة", on_click=save_new_category),
+            ft.TextButton("إلغاء", on_click=lambda e: setattr(new_cat_dlg, 'open', False) or page.update())
         ]
     )
+    page.overlay.append(new_cat_dlg)
 
     def add_expense(e):
         if expense_desc.value and expense_amount.value and expense_desc.value.strip() and expense_amount.value.strip():
             try:
                 desc = expense_desc.value.strip()
                 amt = float(expense_amount.value.strip())
-                cat = category_dropdown.value
+                cat = category_dropdown.value if category_dropdown.value else "أخرى 📦"
                 now_str = datetime.now().strftime("%Y-%m-%d | %I:%M %p")
 
                 conn = sqlite3.connect("data.db")
@@ -593,6 +679,7 @@ def main(page: ft.Page):
                 expense_desc,
                 expense_amount,
                 category_dropdown,
+                ft.IconButton(icon=ft.Icons.ADD_CIRCLE, icon_color=ft.Colors.BLUE_600, tooltip="إضافة تصنيف جديد", on_click=lambda e: setattr(new_cat_dlg, 'open', True) or page.update()),
                 ft.Button(content=ft.Text("إضافة", color=ft.Colors.WHITE), on_click=add_expense, bgcolor=ft.Colors.GREEN_600, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)))
             ]),
             ft.Divider(height=20),
@@ -601,57 +688,125 @@ def main(page: ft.Page):
         padding=5
     )
 
+    # --- شاشة الإعدادات المخصصة ---
+    def clear_all_data(e):
+        conn = sqlite3.connect("data.db")
+        cur = conn.cursor()
+        cur.execute("DELETE FROM tasks")
+        cur.execute("DELETE FROM expenses")
+        conn.commit()
+        conn.close()
+        load_tasks()
+        load_expenses()
+        load_analytics()
+        show_snack("تم مسح كافة البيانات بنجاح", icon=ft.Icons.WARNING, is_error=True)
+
+    settings_view_container = ft.Container(
+        content=ft.Column([
+            ft.Text("⚙️ إعدادات التطبيق", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700),
+            ft.Divider(height=10),
+            ft.Card(
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Text("المظهر والوضع", weight=ft.FontWeight.BOLD),
+                        ft.Row([
+                            ft.Text("الوضع الليلي / النهاري"),
+                            ft.Switch(value=page.theme_mode == ft.ThemeMode.DARK, on_change=toggle_theme)
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+                    ]),
+                    padding=15
+                )
+            ),
+            ft.Card(
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Text("إدارة البيانات", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600),
+                        ft.Text("حذف جميع المهام والمصروفات المسجلة نهائياً.", size=12, color=ft.Colors.GREY_600),
+                        ft.Divider(height=5),
+                        ft.Button(content=ft.Text("مسح كافة البيانات 🗑️", color=ft.Colors.WHITE), on_click=clear_all_data, bgcolor=ft.Colors.RED_600)
+                    ], spacing=8),
+                    padding=15
+                )
+            ),
+            ft.Card(
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Text("حول التطبيق", weight=ft.FontWeight.BOLD),
+                        ft.Text("منظّم يومك الاحترافي - الإصدار الثالث الشامل."),
+                        ft.Text("تم البرمجة والتطوير بواسطة: حكيم محفوظ 💻", size=12, color=ft.Colors.BLUE_600)
+                    ], spacing=5),
+                    padding=15
+                )
+            )
+        ], spacing=15),
+        padding=5
+    )
+
     content_area = ft.Container(content=tasks_view_container, expand=True)
 
     btn_tasks_tab = ft.Button(
         content=ft.Text("📋 المهام", color=ft.Colors.WHITE),
         bgcolor=ft.Colors.BLUE_700,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=10)
     )
     
     btn_expenses_tab = ft.Button(
         content=ft.Text("💰 المصروفات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
         bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=10)
     )
 
     btn_analytics_tab = ft.Button(
-        content=ft.Text("📊 التحليلات والتقارير", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
+        content=ft.Text("📊 التحليلات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
         bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=10)
     )
 
+    btn_settings_tab = ft.Button(
+        content=ft.Text("⚙️ الإعدادات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
+        bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=10)
+    )
+
+    def update_tab_buttons_colors(selected_btn):
+        for b in [btn_tasks_tab, btn_expenses_tab, btn_analytics_tab, btn_settings_tab]:
+            if b == selected_btn:
+                b.bgcolor = ft.Colors.BLUE_700
+                b.content.color = ft.Colors.WHITE
+            else:
+                b.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
+                b.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
+
     def show_tasks_tab(e):
-        btn_tasks_tab.bgcolor, btn_tasks_tab.content.color = ft.Colors.BLUE_700, ft.Colors.WHITE
-        btn_expenses_tab.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
-        btn_expenses_tab.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
-        btn_analytics_tab.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
-        btn_analytics_tab.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
+        update_tab_buttons_colors(btn_tasks_tab)
         content_area.content = tasks_view_container
         page.update()
 
     def show_expenses_tab(e):
-        btn_expenses_tab.bgcolor, btn_expenses_tab.content.color = ft.Colors.BLUE_700, ft.Colors.WHITE
-        btn_tasks_tab.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
-        btn_tasks_tab.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
-        btn_analytics_tab.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
-        btn_analytics_tab.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
+        update_tab_buttons_colors(btn_expenses_tab)
         content_area.content = expenses_view_container
         page.update()
 
     def show_analytics_tab(e):
-        btn_analytics_tab.bgcolor, btn_analytics_tab.content.color = ft.Colors.BLUE_700, ft.Colors.WHITE
-        btn_tasks_tab.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
-        btn_tasks_tab.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
-        btn_expenses_tab.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
-        btn_expenses_tab.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
+        update_tab_buttons_colors(btn_analytics_tab)
         load_analytics()
         content_area.content = analytics_content
+        page.update()
+
+    def show_settings_tab(e):
+        update_tab_buttons_colors(btn_settings_tab)
+        content_area.content = settings_view_container
         page.update()
 
     btn_tasks_tab.on_click = show_tasks_tab
     btn_expenses_tab.on_click = show_expenses_tab
     btn_analytics_tab.on_click = show_analytics_tab
+    btn_settings_tab.on_click = show_settings_tab
+
+    def refresh_all_views():
+        load_tasks()
+        load_expenses()
+        load_categories_dropdown()
 
     main_layout = ft.Column(
         [
@@ -684,7 +839,8 @@ def main(page: ft.Page):
                 btn_tasks_tab,
                 btn_expenses_tab,
                 btn_analytics_tab,
-            ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
+                btn_settings_tab,
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=5),
 
             ft.Divider(height=15),
             
@@ -697,6 +853,7 @@ def main(page: ft.Page):
     )
 
     page.add(welcome_screen, main_layout)
+    refresh_all_views()
     update_stats()
 
 ft.app(target=main)
