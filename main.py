@@ -56,7 +56,7 @@ def main(page: ft.Page):
         current_locale=ft.Locale("ar")
     )
 
-    # إضافة الـ FilePicker لعنصر الـ overlay الخاص بالصفحة
+    # إضافة الـ FilePicker لعنصر الـ overlay الخاص بالصفحة فقط
     page.overlay.append(file_picker_restore)
 
     def show_snack(message, icon=ft.Icons.CHECK_CIRCLE, is_error=False):
@@ -540,6 +540,7 @@ def main(page: ft.Page):
             ft.dropdown.Option("مواصلات 🚗"),
             ft.dropdown.Option("فواتير 💡"),
             ft.dropdown.Option("تسوق 🛍️"),
+             ft.dropdown.Option("مصروف كلية"),
             ft.dropdown.Option("أخرى 📦"),
         ]
     )
@@ -687,6 +688,7 @@ def main(page: ft.Page):
 
     main_layout = ft.Column(
         [
+            # تم ضبط البطاقات لتكون بجانب بعضها وفي المنتصف تماماً
             ft.Row([
                 ft.Card(
                     content=ft.Container(
@@ -708,7 +710,7 @@ def main(page: ft.Page):
                     ),
                     elevation=2,
                 ),
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=15),
 
             ft.Divider(height=5, color=ft.Colors.TRANSPARENT),
 
@@ -722,16 +724,13 @@ def main(page: ft.Page):
             
             content_area
         ],
-        scroll=ft.ScrollMode.AUTO,
-        expand=True,
         visible=False,
         opacity=0.0,
-        animate_opacity=400,
+        expand=True,
+        animate_opacity=400
     )
 
     page.add(welcome_screen, main_layout)
-    load_tasks()
-    load_expenses()
+    update_stats()
 
-if __name__ == "__main__":
-    ft.app(target=main)
+ft.app(target=main)
