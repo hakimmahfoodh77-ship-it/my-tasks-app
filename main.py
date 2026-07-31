@@ -114,9 +114,10 @@ def main(page: ft.Page):
                 ft.Divider(height=15, color=ft.Colors.TRANSPARENT),
                 ft.Text("« نحو إنتاجية متكاملة وتحكم كامل بالمهام والميزانية »", size=13, italic=True, color=ft.Colors.GREY_600, text_align=ft.TextAlign.CENTER),
                 ft.Divider(height=25, color=ft.Colors.TRANSPARENT),
-                ft.ElevatedButton(
-                    "الدخول لوحة التحكم 🚀",
+                ft.Button(
+                    content=ft.Text("الدخول لوحة التحكم 🚀", color=ft.Colors.WHITE),
                     on_click=enter_app,
+                    bgcolor=ft.Colors.BLUE_600,
                     style=ft.ButtonStyle(padding=20, shape=ft.RoundedRectangleBorder(radius=12)),
                 ),
             ],
@@ -187,7 +188,7 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ أثناء التصدير: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
-    # --- ميزة النسخ الاحتياطي واستعادة البيانات (متوافقة مع الإصدارات الحديثة) ---
+    # --- ميزة النسخ الاحتياطي واستعادة البيانات ---
     def backup_database(e):
         try:
             if not os.path.exists("data.db"):
@@ -200,24 +201,25 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ في النسخ الاحتياطي: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
+    # تعريف FilePicker وإضافته كعنصر مستقل في الصفحة
     file_picker_restore = ft.FilePicker()
-    page.overlay.append(file_picker_restore)
+    page.add(file_picker_restore)
 
     async def restore_database(e):
-        result = await file_picker_restore.pick_files(
-            allowed_extensions=["db"], 
-            dialog_title="اختر ملف النسخة الاحتياطية"
-        )
-        if result and result.files and len(result.files) > 0:
-            source_path = result.files[0].path
-            try:
+        try:
+            result = await file_picker_restore.pick_files(
+                allowed_extensions=["db"], 
+                dialog_title="اختر ملف النسخة الاحتياطية"
+            )
+            if result and result.files and len(result.files) > 0:
+                source_path = result.files[0].path
                 shutil.copy(source_path, "data.db")
                 load_tasks()
                 load_expenses()
                 load_analytics()
                 show_snack("تمت استعادة البيانات بنجاح! 🎉", icon=ft.Icons.CLOUD_DONE)
-            except Exception as ex:
-                show_snack(f"فشلت الاستعادة: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
+        except Exception as ex:
+            show_snack(f"فشلت الاستعادة: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
     # --- نافذة قسم التحليلات والتقارير ---
     analytics_content = ft.Column(spacing=15)
@@ -285,9 +287,9 @@ def main(page: ft.Page):
         
         analytics_content.controls.append(
             ft.Row([
-                ft.ElevatedButton("📄 تصدير PDF", icon=ft.Icons.DOWNLOAD, on_click=export_to_pdf, bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE),
-                ft.ElevatedButton("💾 نسخ احتياطي", icon=ft.Icons.SAVE_ALT, on_click=backup_database, bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE),
-                ft.ElevatedButton("🔄 استعادة", icon=ft.Icons.RESTORE, on_click=restore_database, bgcolor=ft.Colors.ORANGE_800, color=ft.Colors.WHITE),
+                ft.Button(content=ft.Text("📄 تصدير PDF", color=ft.Colors.WHITE), icon=ft.Icons.DOWNLOAD, on_click=export_to_pdf, bgcolor=ft.Colors.BLUE_600),
+                ft.Button(content=ft.Text("💾 نسخ احتياطي", color=ft.Colors.WHITE), icon=ft.Icons.SAVE_ALT, on_click=backup_database, bgcolor=ft.Colors.GREEN_700),
+                ft.Button(content=ft.Text("🔄 استعادة", color=ft.Colors.WHITE), icon=ft.Icons.RESTORE, on_click=restore_database, bgcolor=ft.Colors.ORANGE_800),
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=5)
         )
         page.update()
@@ -504,7 +506,7 @@ def main(page: ft.Page):
         content=ft.Column([
             ft.Row([
                 task_input,
-                ft.ElevatedButton("إضافة", on_click=add_task, bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)))
+                ft.Button(content=ft.Text("إضافة", color=ft.Colors.WHITE), on_click=add_task, bgcolor=ft.Colors.GREEN_600, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)))
             ]),
             ft.Row([
                 ft.OutlinedButton(content=ft.Row([ft.Icon(ft.Icons.CALENDAR_MONTH, size=16), date_button_text]), on_click=lambda e: setattr(date_picker, 'open', True) or page.update()),
@@ -621,7 +623,7 @@ def main(page: ft.Page):
                 expense_desc,
                 expense_amount,
                 category_dropdown,
-                ft.ElevatedButton("إضافة", on_click=add_expense, bgcolor=ft.Colors.GREEN_600, color=ft.Colors.WHITE, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)))
+                ft.Button(content=ft.Text("إضافة", color=ft.Colors.WHITE), on_click=add_expense, bgcolor=ft.Colors.GREEN_600, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)))
             ]),
             ft.Divider(height=20),
             expenses_list
@@ -631,51 +633,48 @@ def main(page: ft.Page):
 
     content_area = ft.Container(content=tasks_view_container, expand=True)
 
-    btn_tasks_tab = ft.ElevatedButton(
-        "📋 المهام",
+    btn_tasks_tab = ft.Button(
+        content=ft.Text("📋 المهام", color=ft.Colors.WHITE),
         bgcolor=ft.Colors.BLUE_700,
-        color=ft.Colors.WHITE,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
     )
     
-    btn_expenses_tab = ft.ElevatedButton(
-        "💰 المصروفات",
+    btn_expenses_tab = ft.Button(
+        content=ft.Text("💰 المصروفات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
         bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
-        color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
     )
 
-    btn_analytics_tab = ft.ElevatedButton(
-        "📊 التحليلات والتقارير",
+    btn_analytics_tab = ft.Button(
+        content=ft.Text("📊 التحليلات والتقارير", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
         bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
-        color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
     )
 
     def show_tasks_tab(e):
-        btn_tasks_tab.bgcolor, btn_tasks_tab.color = ft.Colors.BLUE_700, ft.Colors.WHITE
+        btn_tasks_tab.bgcolor, btn_tasks_tab.content.color = ft.Colors.BLUE_700, ft.Colors.WHITE
         btn_expenses_tab.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
-        btn_expenses_tab.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
+        btn_expenses_tab.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
         btn_analytics_tab.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
-        btn_analytics_tab.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
+        btn_analytics_tab.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
         content_area.content = tasks_view_container
         page.update()
 
     def show_expenses_tab(e):
-        btn_expenses_tab.bgcolor, btn_expenses_tab.color = ft.Colors.BLUE_700, ft.Colors.WHITE
+        btn_expenses_tab.bgcolor, btn_expenses_tab.content.color = ft.Colors.BLUE_700, ft.Colors.WHITE
         btn_tasks_tab.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
-        btn_tasks_tab.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
+        btn_tasks_tab.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
         btn_analytics_tab.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
-        btn_analytics_tab.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
+        btn_analytics_tab.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
         content_area.content = expenses_view_container
         page.update()
 
     def show_analytics_tab(e):
-        btn_analytics_tab.bgcolor, btn_analytics_tab.color = ft.Colors.BLUE_700, ft.Colors.WHITE
+        btn_analytics_tab.bgcolor, btn_analytics_tab.content.color = ft.Colors.BLUE_700, ft.Colors.WHITE
         btn_tasks_tab.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
-        btn_tasks_tab.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
+        btn_tasks_tab.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
         btn_expenses_tab.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
-        btn_expenses_tab.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
+        btn_expenses_tab.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
         load_analytics()
         content_area.content = analytics_content
         page.update()
