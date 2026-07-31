@@ -1,7 +1,5 @@
 import flet as ft
 import sqlite3
-import csv
-import os
 from datetime import datetime
 
 # --- 1. إعداد قاعدة البيانات وتحديث الجداول ---
@@ -43,7 +41,7 @@ init_db()
 
 # --- 2. واجهة التطبيق الرئيسية ---
 def main(page: ft.Page):
-    page.title = "منظّم يومك الاحترافي الخارق 🎯"
+    page.title = "منظّم يومك 🎯"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 10
     page.rtl = True
@@ -70,6 +68,8 @@ def main(page: ft.Page):
             page.theme_mode = ft.ThemeMode.LIGHT
             theme_btn.icon = ft.Icons.DARK_MODE
             theme_btn.icon_color = ft.Colors.WHITE
+        load_tasks()  # لإعادة تحديث ألوان النصوص حسب الوضع الحالي
+        load_expenses()
         page.update()
 
     theme_btn = ft.IconButton(
@@ -80,7 +80,7 @@ def main(page: ft.Page):
     )
 
     page.appbar = ft.AppBar(
-        title=ft.Text("منظّم يومك 🎯 (نسخة الخبراء)", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+        title=ft.Text("منظّم يومك 🎯", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
         center_title=True,
         bgcolor=ft.Colors.BLUE_700,
         actions=[theme_btn]
@@ -96,17 +96,17 @@ def main(page: ft.Page):
         content=ft.Column(
             [
                 ft.Icon(ft.Icons.AUTO_AWESOME, size=80, color=ft.Colors.BLUE_700),
-                ft.Text("مرحباً بك يا مبرمجنا المبدع حكيم 👋", size=26, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900, text_align=ft.TextAlign.CENTER),
-                ft.Text("تطبيق منظّم يومك (النسخة الذكية المتكاملة)", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_800, text_align=ft.TextAlign.CENTER),
+                ft.Text("مرحباً بك👋", size=26, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900, text_align=ft.TextAlign.CENTER),
+                ft.Text("تطبيق منظّم يومك", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_800, text_align=ft.TextAlign.CENTER),
                 ft.Container(
                     content=ft.Text("تصميم وتطوير: حكيم محفوظ", size=14, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_600),
                     padding=8, border_radius=10, bgcolor=ft.Colors.BLUE_50,
                 ),
                 ft.Divider(height=15, color=ft.Colors.TRANSPARENT),
-                ft.Text("« إبداع الواجهات يبدأ هنا .. نحو إنتاجية لا توقف »", size=13, italic=True, color=ft.Colors.GREY_600, text_align=ft.TextAlign.CENTER),
+                ft.Text("« تنظيم يومك هو أول خطوات نجاحك »", size=13, italic=True, color=ft.Colors.GREY_600, text_align=ft.TextAlign.CENTER),
                 ft.Divider(height=25, color=ft.Colors.TRANSPARENT),
                 ft.ElevatedButton(
-                    "دخول لوحة التحكم 🚀",
+                    "الدخول للتطبيق 🚀",
                     on_click=enter_app,
                     style=ft.ButtonStyle(padding=20, shape=ft.RoundedRectangleBorder(radius=12)),
                 ),
@@ -168,7 +168,7 @@ def main(page: ft.Page):
             show_snack(f"📌 تمت إضافة المهمة بنجاح!")
 
     task_input = ft.TextField(
-        hint_text="أدخل مهمة جديدة (واضغط Enter للحفظ)...", 
+        hint_text="أدخل مهمة جديدة (واضغط Enter)...", 
         expand=True, 
         border_radius=10, 
         border_color=ft.Colors.BLUE_400,
@@ -285,6 +285,9 @@ def main(page: ft.Page):
 
             due_info = f" | 📅 الموعد: {due_date}" if due_date else ""
             
+            # تحديد لون النص ديناميكياً ليناسب الوضع الليلي والنهاري
+            text_color = ft.Colors.GREY_500 if done else (ft.Colors.WHITE70 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87)
+            
             task_card = ft.Card(
                 content=ft.Container(
                     content=ft.Row(
@@ -298,17 +301,17 @@ def main(page: ft.Page):
                                             size=16, 
                                             weight=ft.FontWeight.BOLD,
                                             decoration=ft.TextDecoration.LINE_THROUGH if done else ft.TextDecoration.NONE,
-                                            color=ft.Colors.GREY_500 if done else ft.Colors.BLACK87
+                                            color=text_color
                                         )
                                     ),
-                                    ft.Text(f"🕒 {created_at}{due_info}", style=ft.TextStyle(size=12, color=ft.Colors.GREY_700)),
+                                    ft.Text(f"🕒 {created_at}{due_info}", style=ft.TextStyle(size=12, color=ft.Colors.GREY_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_700)),
                                 ],
                                 alignment=ft.MainAxisAlignment.CENTER,
                                 spacing=2,
                                 expand=True,
                             ),
-                            ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=ft.Colors.BLUE, on_click=open_edit_task),
-                            ft.TextButton("حذف", on_click=delete_task_item, style=ft.ButtonStyle(color=ft.Colors.RED_500)),
+                            ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=ft.Colors.BLUE_400, on_click=open_edit_task),
+                            ft.TextButton("حذف", on_click=delete_task_item, style=ft.ButtonStyle(color=ft.Colors.RED_400)),
                         ],
                         alignment=ft.MainAxisAlignment.START,
                     ),
@@ -357,7 +360,7 @@ def main(page: ft.Page):
         padding=5
     )
 
-    # --- ج) واجهة المصروفات مع الفئات المتقدمة ---
+    # --- ج) واجهة المصروفات ---
     expenses_list = ft.Column(spacing=8)
     expense_desc = ft.TextField(hint_text="وصف المصروف...", expand=True, border_radius=10, border_color=ft.Colors.BLUE_400, on_submit=lambda e: add_expense(e))
     expense_amount = ft.TextField(hint_text="المبلغ", width=95, keyboard_type=ft.KeyboardType.NUMBER, border_radius=10, border_color=ft.Colors.BLUE_400, on_submit=lambda e: add_expense(e))
@@ -454,6 +457,8 @@ def main(page: ft.Page):
                 load_expenses()
                 show_snack("تم حذف المصروف")
 
+            desc_color = ft.Colors.WHITE70 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
+
             expenses_list.controls.append(
                 ft.Card(
                     content=ft.Container(
@@ -463,17 +468,17 @@ def main(page: ft.Page):
                                 ft.Column(
                                     [
                                         ft.Row([
-                                            ft.Text(desc, size=15, weight=ft.FontWeight.BOLD),
-                                            ft.Container(content=ft.Text(cat_text, size=10, color=ft.Colors.BLUE_800), bgcolor=ft.Colors.BLUE_50, padding=4, border_radius=5)
+                                            ft.Text(desc, size=15, weight=ft.FontWeight.BOLD, color=desc_color),
+                                            ft.Container(content=ft.Text(cat_text, size=10, color=ft.Colors.BLUE_300 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLUE_800), bgcolor=ft.Colors.BLUE_900 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLUE_50, padding=4, border_radius=5)
                                         ], spacing=8),
-                                        ft.Text(f"🕒 {created_at}", size=11, color=ft.Colors.GREY_700),
+                                        ft.Text(f"🕒 {created_at}", size=11, color=ft.Colors.GREY_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_700),
                                     ],
                                     expand=True,
                                     spacing=2,
                                 ),
-                                ft.Text(f"{amt:.2f} ريال", weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_800),
-                                ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=ft.Colors.BLUE, on_click=open_edit_exp),
-                                ft.TextButton("حذف", on_click=delete_expense_item, style=ft.ButtonStyle(color=ft.Colors.RED_500)),
+                                ft.Text(f"{amt:.2f} ريال", weight=ft.FontWeight.BOLD, color=ft.Colors.GREEN_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREEN_800),
+                                ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=ft.Colors.BLUE_400, on_click=open_edit_exp),
+                                ft.TextButton("حذف", on_click=delete_expense_item, style=ft.ButtonStyle(color=ft.Colors.RED_400)),
                             ],
                             alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
                         ),
@@ -482,80 +487,6 @@ def main(page: ft.Page):
                 )
             )
         update_stats()
-        page.update()
-
-    # تصدير البيانات إلى CSV
-    def export_data_to_csv(e):
-        try:
-            filename = f"manazzam_backup_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            conn = sqlite3.connect("data.db")
-            cur = conn.cursor()
-            
-            with open(filename, mode='w', encoding='utf-8-sig', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow(["--- المصروفات ---"])
-                writer.writerow(["ID", "Description", "Amount", "Category", "Date"])
-                cur.execute("SELECT * FROM expenses")
-                writer.writerows(cur.fetchall())
-                
-                writer.writerow([])
-                writer.writerow(["--- المهام ---"])
-                writer.writerow(["ID", "Title", "Done", "Created At", "Due Date"])
-                cur.execute("SELECT * FROM tasks")
-                writer.writerows(cur.fetchall())
-                
-            conn.close()
-            show_snack(f"تم تصدير النسخة الاحتياطية بنجاح باسم: {filename} 📁")
-        except Exception as ex:
-            show_snack(f"خطأ أثناء التصدير: {ex}", is_error=True)
-
-    # لوحة الإحصائيات مع الرسم البياني التفاعلي المرئي (Bar Chart Simulation)
-    def open_analytics_dlg(e):
-        conn = sqlite3.connect("data.db")
-        cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM tasks")
-        total_t = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM tasks WHERE done = 1")
-        done_t = cur.fetchone()[0]
-        cur.execute("SELECT SUM(amount) FROM expenses")
-        sum_e = cur.fetchone()[0] or 0.0
-
-        # جلب إجماليات المصاريف بحسب التصنيف للرسم البياني
-        cur.execute("SELECT category, SUM(amount) FROM expenses GROUP BY category")
-        cat_data = cur.fetchall()
-        conn.close()
-
-        ratio = f"{(done_t / total_t * 100):.1f}%" if total_t > 0 else "0%"
-
-        # بناء أشرطة مرئية احترافية للتصنيفات
-        chart_bars = []
-        if cat_data:
-            chart_bars.append(ft.Text("📊 توزيع المصاريف حسب التصنيف:", weight=ft.FontWeight.BOLD, size=13))
-            for cat, c_sum in cat_data:
-                safe_sum = c_sum if c_sum else 0.0
-                bar_width = int(min(safe_sum * 2, 200)) # تقريب طولي للشريط
-                chart_bars.append(
-                    ft.Row([
-                        ft.Text(f"{cat}:", size=12, width=90),
-                        ft.Container(bgcolor=ft.Colors.BLUE_400, height=14, width=max(bar_width, 10), border_radius=5),
-                        ft.Text(f"{safe_sum:.2f}", size=12, weight=ft.FontWeight.BOLD)
-                    ], spacing=5)
-                )
-        else:
-            chart_bars.append(ft.Text("لا توجد مصروفات مسجلة بعد لعرض المخطط البياني.", italic=True, size=12))
-
-        analytics_dlg = ft.AlertDialog(
-            title=ft.Text("📈 لوحة الإحصائيات والمخططات", weight=ft.FontWeight.BOLD),
-            content=ft.Column([
-                ft.Text(f"📌 إجمالي المهام: {total_t} | المنجزة: {done_t} ({ratio})", size=13),
-                ft.Text(f"💰 إجمالي المصاريف: {sum_e:.2f} ريال", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600, size=15),
-                ft.Divider(),
-                ft.Column(chart_bars, spacing=8)
-            ], tight=True, spacing=10),
-            actions=[ft.TextButton("إغلاق", on_click=lambda e: setattr(analytics_dlg, 'open', False) or page.update())]
-        )
-        page.overlay.append(analytics_dlg)
-        analytics_dlg.open = True
         page.update()
 
     expenses_view_container = ft.Container(
@@ -584,24 +515,24 @@ def main(page: ft.Page):
     
     btn_expenses_tab = ft.ElevatedButton(
         "💰 المصروفات",
-        bgcolor=ft.Colors.GREY_200,
-        color=ft.Colors.BLACK87,
+        bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
+        color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=15)
     )
 
     def show_tasks_tab(e):
         btn_tasks_tab.bgcolor = ft.Colors.BLUE_700
         btn_tasks_tab.color = ft.Colors.WHITE
-        btn_expenses_tab.bgcolor = ft.Colors.GREY_200
-        btn_expenses_tab.color = ft.Colors.BLACK87
+        btn_expenses_tab.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
+        btn_expenses_tab.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
         content_area.content = tasks_view_container
         page.update()
 
     def show_expenses_tab(e):
         btn_expenses_tab.bgcolor = ft.Colors.BLUE_700
         btn_expenses_tab.color = ft.Colors.WHITE
-        btn_tasks_tab.bgcolor = ft.Colors.GREY_200
-        btn_tasks_tab.color = ft.Colors.BLACK87
+        btn_tasks_tab.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
+        btn_tasks_tab.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
         content_area.content = expenses_view_container
         page.update()
 
@@ -610,12 +541,12 @@ def main(page: ft.Page):
 
     main_layout = ft.Column(
         [
-            # البطاقات العلوية الإحصائية (المهام في اليمين، المصاريف في اليسار حسب طلبك)
+            # البطاقات العلوية الإحصائية
             ft.Row([
                 ft.Card(
                     content=ft.Container(
                         content=ft.Column([
-                            ft.Text("المهام المتبقية", size=12, color=ft.Colors.GREY_700),
+                            ft.Text("المهام المتبقية", size=12, color=ft.Colors.GREY_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_700),
                             remaining_tasks_card_text
                         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                         padding=12, width=165
@@ -625,7 +556,7 @@ def main(page: ft.Page):
                 ft.Card(
                     content=ft.Container(
                         content=ft.Column([
-                            ft.Text("إجمالي المصاريف", size=12, color=ft.Colors.GREY_700),
+                            ft.Text("إجمالي المصاريف", size=12, color=ft.Colors.GREY_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_700),
                             total_expenses_card_text
                         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
                         padding=12, width=165
@@ -633,12 +564,6 @@ def main(page: ft.Page):
                     elevation=2,
                 ),
             ], alignment=ft.MainAxisAlignment.CENTER),
-
-            # أزرار الأدوات الاحترافية المتقدمة
-            ft.Row([
-                ft.OutlinedButton("📊 المخططات والإحصائيات", icon=ft.Icons.BAR_CHART, on_click=open_analytics_dlg),
-                ft.OutlinedButton("📁 تصدير النسخة (CSV)", icon=ft.Icons.DOWNLOAD, on_click=export_data_to_csv),
-            ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
 
             ft.Divider(height=5, color=ft.Colors.TRANSPARENT),
 
