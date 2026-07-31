@@ -85,23 +85,12 @@ def main(page: ft.Page):
     def toggle_theme(e):
         if page.theme_mode == ft.ThemeMode.LIGHT:
             page.theme_mode = ft.ThemeMode.DARK
-            theme_btn.icon = ft.Icons.LIGHT_MODE
-            theme_btn.icon_color = ft.Colors.AMBER_400
         else:
             page.theme_mode = ft.ThemeMode.LIGHT
-            theme_btn.icon = ft.Icons.DARK_MODE
-            theme_btn.icon_color = ft.Colors.WHITE
         refresh_all_views()
         page.update()
 
-    theme_btn = ft.IconButton(
-        icon=ft.Icons.DARK_MODE,
-        icon_color=ft.Colors.WHITE,
-        tooltip="تبديل الوضع الليلي/النهاري",
-        on_click=toggle_theme
-    )
-
-    # سيتم تعريف زر الإعدادات العلوي لاحقاً لربطه بالانتقال للشاشة
+    # زر الإعدادات في أقصى اليمين في شريط التطبيق العلوي
     settings_top_btn = ft.IconButton(
         icon=ft.Icons.SETTINGS,
         icon_color=ft.Colors.WHITE,
@@ -109,11 +98,12 @@ def main(page: ft.Page):
         on_click=lambda e: show_settings_tab(None)
     )
 
+    # شريط التطبيق العلوي يحتوي على زر الإعدادات فقط (تمت إزالة زر الوضع الليلي من هنا)
     page.appbar = ft.AppBar(
         title=ft.Text("منظّم يومك الاحترافي 🎯", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
         center_title=True,
         bgcolor=ft.Colors.BLUE_700,
-        actions=[settings_top_btn, theme_btn]
+        actions=[settings_top_btn]
     )
 
     def enter_app(e):
@@ -279,7 +269,6 @@ def main(page: ft.Page):
                 percentage = (total / total_sum) * 100
                 c_color = colors_list[idx % len(colors_list)]
                 
-                # استخدام مؤشر شريطي بصري متطور وآمن تماماً
                 analytics_content.controls.append(
                     ft.Card(
                         content=ft.Container(
@@ -680,7 +669,7 @@ def main(page: ft.Page):
         padding=5
     )
 
-    # --- شاشة الإعدادات المخصصة ---
+    # --- شاشة الإعدادات المخصصة (مع زر التحكم بالوضع الليلي/النهاري) ---
     def clear_all_data(e):
         conn = sqlite3.connect("data.db")
         cur = conn.cursor()
@@ -736,7 +725,7 @@ def main(page: ft.Page):
 
     content_area = ft.Container(content=tasks_view_container, expand=True)
 
-    # أزرار التنقل السفلية الرئيسية (تمت ازالة زر الإعدادات من هنا لأنه أصبح في الأعلى)
+    # أزرار التنقل السفلية الرئيسية
     btn_tasks_tab = ft.Button(
         content=ft.Text("📋 المهام", color=ft.Colors.WHITE),
         bgcolor=ft.Colors.BLUE_700,
@@ -781,7 +770,6 @@ def main(page: ft.Page):
         page.update()
 
     def show_settings_tab(e):
-        # عندما يتم الضغط على زر الإعدادات العلوي، يتم إلفاء تحديد الأزرار السفلية
         for b in [btn_tasks_tab, btn_expenses_tab, btn_analytics_tab]:
             b.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
             b.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
