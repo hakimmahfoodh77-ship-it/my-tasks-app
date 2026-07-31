@@ -162,15 +162,15 @@ def main(page: ft.Page):
 
         page.update()
 
-    # --- ميزة تصدير تقرير PDF المضمون ---
+    # --- ميزة تصدير تقرير PDF المحدثة (بدون تحذيرات) ---
     def export_to_pdf(e):
         try:
             pdf = FPDF()
             pdf.add_page()
             pdf.set_font("Arial", "B", 16)
-            pdf.cell(200, 10, txt="Monazzam Yawmak - Daily Report", ln=True, align="C")
+            pdf.cell(200, 10, txt="Monazzam Yawmak - Daily Report", new_x="LMARGIN", new_y="NEXT", align="C")
             pdf.set_font("Arial", "", 12)
-            pdf.cell(200, 10, txt=f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True, align="C")
+            pdf.cell(200, 10, txt=f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}", new_x="LMARGIN", new_y="NEXT", align="C")
             pdf.ln(10)
 
             conn = sqlite3.connect("data.db")
@@ -178,23 +178,23 @@ def main(page: ft.Page):
 
             # جلب المهام
             pdf.set_font("Arial", "B", 14)
-            pdf.cell(200, 10, txt="Tasks Summary:", ln=True)
+            pdf.cell(200, 10, txt="Tasks Summary:", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Arial", "", 11)
             cur.execute("SELECT title, done, due_date FROM tasks")
             for title, done, due in cur.fetchall():
                 status = "[Done]" if done else "[Pending]"
                 line = f"- {status} {title} (Due: {due if due else 'None'})"
-                pdf.cell(200, 8, txt=line, ln=True)
+                pdf.cell(200, 8, txt=line, new_x="LMARGIN", new_y="NEXT")
 
             pdf.ln(5)
             # جلب المصروفات
             pdf.set_font("Arial", "B", 14)
-            pdf.cell(200, 10, txt="Expenses Summary:", ln=True)
+            pdf.cell(200, 10, txt="Expenses Summary:", new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Arial", "", 11)
             cur.execute("SELECT description, amount, category FROM expenses")
             for desc, amt, cat in cur.fetchall():
                 line = f"- {cat}: {desc} -> {amt:.2f} SAR"
-                pdf.cell(200, 8, txt=line, ln=True)
+                pdf.cell(200, 8, txt=line, new_x="LMARGIN", new_y="NEXT")
 
             conn.close()
             
