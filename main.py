@@ -1,7 +1,6 @@
 import flet as ft
 import sqlite3
 import os
-import shutil
 from datetime import datetime
 from fpdf import FPDF
 
@@ -53,12 +52,11 @@ def main(page: ft.Page):
         current_locale=ft.Locale("ar")
     )
 
-    # التعريفات الخاصة بالـ Pickers وإضافتها حصرياً للـ overlay
-    file_picker_restore = ft.FilePicker()
+    # التعريفات الخاصة بالـ Pickers الآمنة فقط
     date_picker = ft.DatePicker(confirm_text="موافق", cancel_text="إلغاء")
     time_picker = ft.TimePicker(confirm_text="موافق", cancel_text="إلغاء")
     
-    page.overlay.extend([file_picker_restore, date_picker, time_picker])
+    page.overlay.extend([date_picker, time_picker])
 
     def show_snack(message, icon=ft.Icons.CHECK_CIRCLE, is_error=False):
         page.snack_bar = ft.SnackBar(
@@ -195,35 +193,6 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ أثناء التصدير: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
-    # --- النسخ الاحتياطي واستعادة البيانات ---
-    def backup_database(e):
-        try:
-            if not os.path.exists("data.db"):
-                show_snack("لا توجد بيانات للنسخ الاحتياطي حالياً", icon=ft.Icons.WARNING, is_error=True)
-                return
-            
-            backup_filename = f"backup_monazzam_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
-            shutil.copy("data.db", backup_filename)
-            show_snack(f"تم حفظ النسخة الاحتياطية بنجاح: {backup_filename}", icon=ft.Icons.SAVE)
-        except Exception as ex:
-            show_snack(f"خطأ في النسخ الاحتياطي: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
-
-    def restore_database(e):
-        try:
-            def on_file_picked(e: ft.FilePickerResultEvent):
-                if e.files and len(e.files) > 0:
-                    source_path = e.files[0].path
-                    shutil.copy(source_path, "data.db")
-                    load_tasks()
-                    load_expenses()
-                    load_analytics()
-                    show_snack("تمت استعادة البيانات بنجاح! 🎉", icon=ft.Icons.CLOUD_DONE)
-
-            file_picker_restore.on_result = on_file_picked
-            file_picker_restore.pick_files(allowed_extensions=["db"], dialog_title="اختر ملف النسخة الاحتياطية")
-        except Exception as ex:
-            show_snack(f"فشلت الاستعادة: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
-
     # --- قسم التحليلات والتقارير ---
     analytics_content = ft.Column(spacing=15)
 
@@ -290,9 +259,7 @@ def main(page: ft.Page):
         
         analytics_content.controls.append(
             ft.Row([
-                ft.Button(content=ft.Text("📄 تصدير PDF", color=ft.Colors.WHITE), icon=ft.Icons.DOWNLOAD, on_click=export_to_pdf, bgcolor=ft.Colors.BLUE_600),
-                ft.Button(content=ft.Text("💾 نسخ احتياطي", color=ft.Colors.WHITE), icon=ft.Icons.SAVE_ALT, on_click=backup_database, bgcolor=ft.Colors.GREEN_700),
-                ft.Button(content=ft.Text("🔄 استعادة", color=ft.Colors.WHITE), icon=ft.Icons.RESTORE, on_click=restore_database, bgcolor=ft.Colors.ORANGE_800),
+                ft.Button(content=ft.Text("📄 تصدير تقرير PDF", color=ft.Colors.WHITE), icon=ft.Icons.DOWNLOAD, on_click=export_to_pdf, bgcolor=ft.Colors.BLUE_600),
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=5)
         )
         page.update()
