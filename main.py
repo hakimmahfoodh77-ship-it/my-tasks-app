@@ -435,7 +435,7 @@ def main(page: ft.Page):
     content_area = ft.Container(content=tasks_view_container, expand=True)
 
     btn_tasks_tab = ft.ElevatedButton(
-        "📋 المهام اليومية",
+        "المهام اليومية",
         bgcolor=ft.Colors.BLUE_700,
         color=ft.Colors.WHITE,
         style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=15)
