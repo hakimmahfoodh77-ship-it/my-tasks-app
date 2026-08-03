@@ -387,9 +387,9 @@ def main(page: ft.Page):
         visible=(get_setting("lock_enabled") != "True")
     )
 
-    total_expenses_card_text = ft.Text("0.00 ريال", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600)
-    remaining_tasks_card_text = ft.Text("0", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
-    streak_card_text = ft.Text("🔥 0 أيام", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER_700)
+    total_expenses_card_text = ft.Text("0.00 ريال", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600)
+    remaining_tasks_card_text = ft.Text("0", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
+    streak_card_text = ft.Text("🔥 0", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER_700)
 
     def update_stats():
         conn = sqlite3.connect("data.db")
@@ -413,7 +413,7 @@ def main(page: ft.Page):
 
         total_expenses_card_text.value = f"{total_exp:.2f} ريال"
         remaining_tasks_card_text.value = str(rem_tasks)
-        streak_card_text.value = f"🔥 {streak_val} إنجاز"
+        streak_card_text.value = f"🔥 {streak_val}"
         page.update()
 
     def check_due_tasks_notifications():
@@ -684,6 +684,11 @@ def main(page: ft.Page):
     date_picker.on_change = on_date_change
     time_picker.on_change = on_time_change
 
+    # تصحيح فتح منتقي الوقت (استخدام open = True بدلاً من دالة غير موجودة)
+    def open_time_picker(e):
+        time_picker.open = True
+        page.update()
+
     edit_task_id = {"id": None}
     edit_task_input = ft.TextField(label="تعديل نص المهمة")
 
@@ -803,7 +808,7 @@ def main(page: ft.Page):
             ft.Row([
                 ft.ElevatedButton(content=ft.Text("تاريخ الاستحقاق", size=12), icon=ft.Icons.CALENDAR_MONTH, on_click=lambda e: date_picker.pick_date()),
                 date_button_text,
-                ft.ElevatedButton(content=ft.Text("وقت الاستحقاق", size=12), icon=ft.Icons.ACCESS_TIME, on_click=lambda e: time_picker.pick_time()),
+                ft.ElevatedButton(content=ft.Text("وقت الاستحقاق", size=12), icon=ft.Icons.ACCESS_TIME, on_click=open_time_picker),
                 time_button_text,
             ], spacing=10),
             search_task_input,
@@ -915,16 +920,22 @@ def main(page: ft.Page):
         expand=True
     )
 
-    # --- هيكل التطبيق الأساسي ---
+    # --- هيكل التطبيق الأساسي (تم تصحيح الأبعاد ومكان أزرار التنقل) ---
     main_layout = ft.Column(
         [
+            # البطاقات العلوية بحجم متناسق وصغير غير ممتد
             ft.Row([
-                ft.Card(content=ft.Container(content=ft.Column([ft.Text("إجمالي المصروفات", size=12), total_expenses_card_text], alignment=ft.MainAxisAlignment.CENTER), padding=10), expand=True),
-                ft.Card(content=ft.Container(content=ft.Column([ft.Text("المهام المتبقية", size=12), remaining_tasks_card_text], alignment=ft.MainAxisAlignment.CENTER), padding=10), expand=True),
-                ft.Card(content=ft.Container(content=ft.Column([ft.Text("الإنتاجية", size=12), streak_card_text], alignment=ft.MainAxisAlignment.CENTER), padding=10), expand=True),
-            ]),
+                ft.Card(content=ft.Container(content=ft.Column([ft.Text("إجمالي المصروفات", size=11, color=ft.Colors.GREY_700), total_expenses_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), expand=True),
+                ft.Card(content=ft.Container(content=ft.Column([ft.Text("المهام المتبقية", size=11, color=ft.Colors.GREY_700), remaining_tasks_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), expand=True),
+                ft.Card(content=ft.Container(content=ft.Column([ft.Text("الإنتاجية", size=11, color=ft.Colors.GREY_700), streak_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), expand=True),
+            ], alignment=ft.MainAxisAlignment.CENTER),
+            
+            # منطقة المحتوى تأخذ المساحة الوسطى المتبقية وتدفع أزرار التنقل لأسفل الشاشة تماماً
             content_area,
+            
             ft.Divider(height=1),
+            
+            # أزرار التنقل السفلي مثبتة في أسفل الشاشة بشكل مرتب
             ft.Row([
                 btn_tasks_tab,
                 btn_expenses_tab,
@@ -933,11 +944,10 @@ def main(page: ft.Page):
             ], alignment=ft.MainAxisAlignment.SPACE_AROUND)
         ],
         expand=True,
-        visible=False,  # تبدأ مخفية لحين إغلاق شاشة الترحيب أو عدم وجود قفل
+        visible=False,
         animate_opacity=400
     )
 
-    # إذا كان القفل مفعلاً، نظهر شاشة القفل فقط، وإذا لم يكن مفعلاً نظهر شاشة الترحيب وحدها أولاً
     if get_setting("lock_enabled") == "True":
         welcome_screen.visible = False
         main_layout.visible = False
