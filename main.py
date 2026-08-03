@@ -116,7 +116,6 @@ def main(page: ft.Page):
             page.theme_mode = ft.ThemeMode.DARK
         else:
             page.theme_mode = ft.ThemeMode.LIGHT
-        refresh_all_views()
         page.update()
 
     def clear_all_data(e):
@@ -172,7 +171,6 @@ def main(page: ft.Page):
         if pin_input.value == saved_pin:
             lock_screen.visible = False
             welcome_screen.visible = True
-            welcome_screen.opacity = 1.0
             page.update()
         else:
             show_snack("رمز المرور غير صحيح!", icon=ft.Icons.ERROR, is_error=True)
@@ -387,9 +385,9 @@ def main(page: ft.Page):
         visible=(get_setting("lock_enabled") != "True")
     )
 
-    total_expenses_card_text = ft.Text("0.00 ريال", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600)
-    remaining_tasks_card_text = ft.Text("0", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
-    streak_card_text = ft.Text("🔥 0", size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER_700)
+    total_expenses_card_text = ft.Text("0.00 ريال", size=13, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600)
+    remaining_tasks_card_text = ft.Text("0", size=13, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
+    streak_card_text = ft.Text("🔥 0", size=13, weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER_700)
 
     def update_stats():
         conn = sqlite3.connect("data.db")
@@ -684,7 +682,10 @@ def main(page: ft.Page):
     date_picker.on_change = on_date_change
     time_picker.on_change = on_time_change
 
-    # تصحيح فتح منتقي الوقت (استخدام open = True بدلاً من دالة غير موجودة)
+    # تصحيح فتح منتقي التاريخ والوقت بالطريقة الآمنة والحديثة
+    def open_date_picker(e):
+        page.open(date_picker)
+
     def open_time_picker(e):
         time_picker.open = True
         page.update()
@@ -806,7 +807,7 @@ def main(page: ft.Page):
                 ft.ElevatedButton(content=ft.Text("إضافة", color=ft.Colors.WHITE), on_click=add_task, bgcolor=ft.Colors.BLUE_600)
             ], spacing=5),
             ft.Row([
-                ft.ElevatedButton(content=ft.Text("تاريخ الاستحقاق", size=12), icon=ft.Icons.CALENDAR_MONTH, on_click=lambda e: date_picker.pick_date()),
+                ft.ElevatedButton(content=ft.Text("تاريخ الاستحقاق", size=12), icon=ft.Icons.CALENDAR_MONTH, on_click=open_date_picker),
                 date_button_text,
                 ft.ElevatedButton(content=ft.Text("وقت الاستحقاق", size=12), icon=ft.Icons.ACCESS_TIME, on_click=open_time_picker),
                 time_button_text,
@@ -920,22 +921,22 @@ def main(page: ft.Page):
         expand=True
     )
 
-    # --- هيكل التطبيق الأساسي (تم تصحيح الأبعاد ومكان أزرار التنقل) ---
+    # --- هيكل التطبيق الأساسي (تم تعديل البطاقات الثلاث العلوية لتأخذ حجم محتواها فقط بدون تمدد عرضي) ---
     main_layout = ft.Column(
         [
-            # البطاقات العلوية بحجم متناسق وصغير غير ممتد
+            # البطاقات العلوية مضغوطة على قدر مساحة النص فقط وموزعة بمسافات متناسقة
             ft.Row([
-                ft.Card(content=ft.Container(content=ft.Column([ft.Text("إجمالي المصروفات", size=11, color=ft.Colors.GREY_700), total_expenses_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), expand=True),
-                ft.Card(content=ft.Container(content=ft.Column([ft.Text("المهام المتبقية", size=11, color=ft.Colors.GREY_700), remaining_tasks_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), expand=True),
-                ft.Card(content=ft.Container(content=ft.Column([ft.Text("الإنتاجية", size=11, color=ft.Colors.GREY_700), streak_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), expand=True),
-            ], alignment=ft.MainAxisAlignment.CENTER),
+                ft.Card(content=ft.Container(content=ft.Column([ft.Text("الإنتاجية", size=11, color=ft.Colors.GREY_700, text_align=ft.TextAlign.CENTER), streak_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), width=110),
+                ft.Card(content=ft.Container(content=ft.Column([ft.Text("المهام المتبقية", size=11, color=ft.Colors.GREY_700, text_align=ft.TextAlign.CENTER), remaining_tasks_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), width=110),
+                ft.Card(content=ft.Container(content=ft.Column([ft.Text("إجمالي المصروفات", size=11, color=ft.Colors.GREY_700, text_align=ft.TextAlign.CENTER), total_expenses_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), width=125),
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
             
-            # منطقة المحتوى تأخذ المساحة الوسطى المتبقية وتدفع أزرار التنقل لأسفل الشاشة تماماً
+            # منطقة المحتوى
             content_area,
             
             ft.Divider(height=1),
             
-            # أزرار التنقل السفلي مثبتة في أسفل الشاشة بشكل مرتب
+            # أزرار التنقل السفلي
             ft.Row([
                 btn_tasks_tab,
                 btn_expenses_tab,
