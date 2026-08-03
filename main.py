@@ -682,7 +682,6 @@ def main(page: ft.Page):
     date_picker.on_change = on_date_change
     time_picker.on_change = on_time_change
 
-    # طريقة آمنة ومتوافقة تماماً لإظهار التاريخ والوقت
     def open_date_picker(e):
         date_picker.open = True
         page.update()
@@ -922,7 +921,7 @@ def main(page: ft.Page):
         expand=True
     )
 
-    # --- هيكل التطبيق الأساسي ---
+    # --- هيكل التطبيق الأساسي (نقل الأزرار لتكون تحت الإحصائيات مباشرة) ---
     main_layout = ft.Column(
         [
             ft.Row([
@@ -931,16 +930,17 @@ def main(page: ft.Page):
                 ft.Card(content=ft.Container(content=ft.Column([ft.Text("إجمالي المصروفات", size=11, color=ft.Colors.GREY_700, text_align=ft.TextAlign.CENTER), total_expenses_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), width=125),
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
             
-            content_area,
-            
-            ft.Divider(height=1),
-            
+            # أزرار التنقل أصبحت الآن تحت بطاقات الإحصائيات مباشرة وقبل محتوى الصفحة
             ft.Row([
                 btn_tasks_tab,
                 btn_expenses_tab,
                 btn_calendar_tab,
                 btn_analytics_tab,
-            ], alignment=ft.MainAxisAlignment.SPACE_AROUND)
+            ], alignment=ft.MainAxisAlignment.SPACE_AROUND),
+            
+            ft.Divider(height=5),
+            
+            content_area,
         ],
         expand=True,
         visible=False,
