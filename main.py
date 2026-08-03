@@ -171,7 +171,6 @@ def main(page: ft.Page):
         saved_pin = get_setting("app_pin")
         if pin_input.value == saved_pin:
             lock_screen.visible = False
-            lock_screen.opacity = 0.0
             welcome_screen.visible = True
             welcome_screen.opacity = 1.0
             page.update()
@@ -354,7 +353,6 @@ def main(page: ft.Page):
     )
 
     def enter_app(e):
-        welcome_screen.opacity = 0.0
         welcome_screen.visible = False
         main_layout.visible = True
         main_layout.opacity = 1.0
@@ -386,7 +384,6 @@ def main(page: ft.Page):
         ),
         alignment=ft.alignment.Alignment(0, 0),
         expand=True,
-        animate_opacity=400,
         visible=(get_setting("lock_enabled") != "True")
     )
 
@@ -936,9 +933,17 @@ def main(page: ft.Page):
             ], alignment=ft.MainAxisAlignment.SPACE_AROUND)
         ],
         expand=True,
-        visible=(get_setting("lock_enabled") != "True"),
+        visible=False,  # تبدأ مخفية لحين إغلاق شاشة الترحيب أو عدم وجود قفل
         animate_opacity=400
     )
+
+    # إذا كان القفل مفعلاً، نظهر شاشة القفل فقط، وإذا لم يكن مفعلاً نظهر شاشة الترحيب وحدها أولاً
+    if get_setting("lock_enabled") == "True":
+        welcome_screen.visible = False
+        main_layout.visible = False
+    else:
+        lock_screen.visible = False
+        welcome_screen.visible = True
 
     content_area.content = tasks_view_container
     load_tasks()
