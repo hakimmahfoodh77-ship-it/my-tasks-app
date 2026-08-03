@@ -245,7 +245,7 @@ def main(page: ft.Page):
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
-        alignment=ft.alignment.center,  # التصحيح هنا: استخدام ft.alignment.center بالشكل الصحيح
+        alignment=ft.alignment.center,  # تم التصحيح هنا بنجاح
         expand=True,
         animate_opacity=400,
     )
