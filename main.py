@@ -90,7 +90,6 @@ def main(page: ft.Page):
         refresh_all_views()
         page.update()
 
-    # محتوى شاشة الإعدادات
     def clear_all_data(e):
         conn = sqlite3.connect("data.db")
         cur = conn.cursor()
@@ -147,7 +146,6 @@ def main(page: ft.Page):
 
     content_area = ft.Container(content=None, expand=True)
 
-    # أزرار التنقل السفلية
     btn_tasks_tab = ft.ElevatedButton(
         content=ft.Text("📋 المهام", color=ft.Colors.WHITE),
         bgcolor=ft.Colors.BLUE_700,
@@ -202,7 +200,6 @@ def main(page: ft.Page):
     btn_expenses_tab.on_click = show_expenses_tab
     btn_analytics_tab.on_click = show_analytics_tab
 
-    # زر الإعدادات في أقصى اليمين العلوي للـ AppBar
     page.appbar = ft.AppBar(
         title=ft.Text("منظّم يومك الاحترافي 🎯", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
         center_title=True,
@@ -248,7 +245,7 @@ def main(page: ft.Page):
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
-        alignment=ft.alignment.CENTER,  # تم تعديلها هنا إلى الحرف الكبير لضمان عدم ظهور أي خطأ
+        alignment=ft.alignment.center,  # التصحيح هنا: استخدام ft.alignment.center بالشكل الصحيح
         expand=True,
         animate_opacity=400,
     )
@@ -327,7 +324,6 @@ def main(page: ft.Page):
         except Exception as ex:
             show_snack(f"خطأ أثناء التصدير: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
-    # --- قسم التحليلات والرسوم البيانية ---
     analytics_content = ft.Column(spacing=15, scroll=ft.ScrollMode.AUTO, expand=True)
 
     def load_analytics():
@@ -409,7 +405,6 @@ def main(page: ft.Page):
         )
         page.update()
 
-    # --- إدارة المهام ---
     tasks_list = ft.Column(spacing=8)
     task_filter_mode = {"mode": "all"}
 
@@ -638,7 +633,6 @@ def main(page: ft.Page):
         expand=True
     )
 
-    # --- إدارة المصروفات والتصنيفات المخصصة ---
     expenses_list = ft.Column(spacing=8)
     expense_desc = ft.TextField(hint_text="وصف المصروف...", expand=True, border_radius=10, border_color=ft.Colors.BLUE_400, on_submit=lambda e: add_expense(e))
     expense_amount = ft.TextField(hint_text="المبلغ", width=95, keyboard_type=ft.KeyboardType.NUMBER, border_radius=10, border_color=ft.Colors.BLUE_400, on_submit=lambda e: add_expense(e))
