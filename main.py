@@ -2,6 +2,7 @@ import flet as ft
 import sqlite3
 from datetime import datetime
 from fpdf import FPDF
+import os
 
 # --- 1. إعداد قاعدة البيانات وتحديث الجداول ---
 def init_db():
@@ -318,9 +319,16 @@ def main(page: ft.Page):
 
             conn.close()
             
+            # تحديد مسار سطح المكتب للمستخدم تلقائياً لضمان حفظ الملف بوضوح هناك
+            desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+            if not os.path.exists(desktop_path):
+                desktop_path = os.getcwd() # احتياطاً إذا لم يتم العثور على سطح المكتب
+
             filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-            pdf.output(filename)
-            show_snack(f"تم تصدير التقرير بنجاح: {filename}", icon=ft.Icons.PICTURE_AS_PDF)
+            full_path = os.path.join(desktop_path, filename)
+            
+            pdf.output(full_path)
+            show_snack(f"تم حفظ التقرير في سطح المكتب: {filename}", icon=ft.Icons.PICTURE_AS_PDF)
         except Exception as ex:
             show_snack(f"خطأ أثناء التصدير: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
 
@@ -398,7 +406,6 @@ def main(page: ft.Page):
             ft.Divider(height=10)
         )
         
-        # زر تصدير PDF واحد فقط بدون تكرار
         analytics_content.controls.append(
             ft.Row([
                 ft.ElevatedButton(content=ft.Text("📄 تصدير تقرير PDF", color=ft.Colors.WHITE), icon=ft.Icons.DOWNLOAD, on_click=export_to_pdf, bgcolor=ft.Colors.BLUE_600),
