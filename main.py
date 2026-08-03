@@ -245,7 +245,7 @@ def main(page: ft.Page):
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
         ),
-        alignment=ft.alignment.Alignment(0, 0),  # الطريقة المضمونة والنهائية لتجنب أخطاء الإصدارات
+        alignment=ft.alignment.Alignment(0, 0),
         expand=True,
         animate_opacity=400,
     )
@@ -582,10 +582,11 @@ def main(page: ft.Page):
                 padding=10,
             )
 
+            # استخدام Alignment الآمن لتجنب أي أخطاء في إصدارات Flet
             dismissible_card = ft.Dismissible(
                 content=ft.Card(content=task_content),
-                background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.alignment.center_right, padding=20, content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
-                secondary_background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.alignment.center_left, padding=20, content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
+                background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.alignment.Alignment(1, 0), padding=20, content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
+                secondary_background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.alignment.Alignment(-1, 0), padding=20, content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
                 on_dismiss=lambda e, tid=task_id: delete_task_item(None, tid)
             )
 
