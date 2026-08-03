@@ -1,8 +1,6 @@
 import flet as ft
 import sqlite3
-from datetime import datetime
-from fpdf import FPDF
-import os
+from datetime import datetime, timedelta
 
 # --- 1. إعداد قاعدة البيانات وتحديث الجداول ---
 def init_db():
@@ -14,13 +12,17 @@ def init_db():
             title TEXT,
             done INTEGER,
             created_at TEXT,
-            due_date TEXT
+            due_date TEXT,
+            recurrence TEXT DEFAULT 'لا تتكرر',
+            last_reset_date TEXT
         )
     """)
-    try:
-        cursor.execute("ALTER TABLE tasks ADD COLUMN due_date TEXT")
-    except sqlite3.OperationalError:
-        pass
+    # التحقق من وجود الأعمدة الجديدة في جدول المهام للتوافق مع التحديثات
+    for col, col_type in [("due_date", "TEXT"), ("recurrence", "TEXT DEFAULT 'لا تتكرر'"), ("last_reset_date", "TEXT")]:
+        try:
+            cursor.execute(f"ALTER TABLE tasks ADD COLUMN {col} {col_type}")
+        except sqlite3.OperationalError:
+            pass
 
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS expenses (
@@ -28,11 +30,12 @@ def init_db():
             description TEXT,
             amount REAL,
             category TEXT,
-            created_at TEXT
+            created_at TEXT,
+            date_only TEXT
         )
     """)
     try:
-        cursor.execute("ALTER TABLE expenses ADD COLUMN category TEXT")
+        cursor.execute("ALTER TABLE expenses ADD COLUMN date_only TEXT")
     except sqlite3.OperationalError:
         pass
 
@@ -49,6 +52,19 @@ def init_db():
             cursor.execute("INSERT INTO categories (name) VALUES (?)", (cat,))
         except sqlite3.IntegrityError:
             pass
+
+    # جدول الإعدادات العامة (الميزانية، رمز القفل، إلخ)
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    """)
+    
+    # القيم الافتراضية
+    defaults = {"monthly_budget": "1500", "app_pin": "1234", "lock_enabled": "False"}
+    for k, v in defaults.items():
+        cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
 
     conn.commit()
     conn.close()
@@ -69,6 +85,21 @@ def main(page: ft.Page):
     date_picker = ft.DatePicker(confirm_text="موافق", cancel_text="إلغاء")
     time_picker = ft.TimePicker(confirm_text="موافق", cancel_text="إلغاء")
     page.overlay.extend([date_picker, time_picker])
+
+    def get_setting(key):
+        conn = sqlite3.connect("data.db")
+        cur = conn.cursor()
+        cur.execute("SELECT value FROM settings WHERE key = ?", (key,))
+        res = cur.fetchone()
+        conn.close()
+        return res[0] if res else ""
+
+    def set_setting(key, value):
+        conn = sqlite3.connect("data.db")
+        cur = conn.cursor()
+        cur.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, value))
+        conn.commit()
+        conn.close()
 
     def show_snack(message, icon=ft.Icons.CHECK_CIRCLE, is_error=False):
         page.snack_bar = ft.SnackBar(
@@ -103,10 +134,108 @@ def main(page: ft.Page):
         load_analytics()
         show_snack("تم مسح كافة البيانات بنجاح", icon=ft.Icons.WARNING, is_error=True)
 
+    # --- معالجة المهام المتكررة تلقائياً عند فتح التطبيق ---
+    def check_recurring_tasks():
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        conn = sqlite3.connect("data.db")
+        cur = conn.cursor()
+        cur.execute("SELECT id, recurrence, last_reset_date FROM tasks WHERE recurrence != 'لا تتكرر'")
+        tasks = cur.fetchall()
+        
+        for tid, rec, last_reset in tasks:
+            if last_reset != today_str:
+                should_reset = False
+                if rec == "يومية":
+                    should_reset = True
+                elif rec == "أسبوعية":
+                    if not last_reset:
+                        should_reset = True
+                    else:
+                        d_last = datetime.strptime(last_reset, "%Y-%m-%d")
+                        if (datetime.now() - d_last).days >= 7:
+                            should_reset = True
+                elif rec == "شهرية":
+                    if not last_reset:
+                        should_reset = True
+                    else:
+                        d_last = datetime.strptime(last_reset, "%Y-%m-%d")
+                        if (datetime.now() - d_last).days >= 30:
+                            should_reset = True
+                
+                if should_reset:
+                    cur.execute("UPDATE tasks SET done = 0, last_reset_date = ? WHERE id = ?", (today_str, tid))
+        conn.commit()
+        conn.close()
+
+    check_recurring_tasks()
+
+    # --- شاشة قفل التطبيق بـ PIN ---
+    pin_input = ft.TextField(label="أدخل رمز المرور (افتراضي: 1234)", password=True, can_reveal_password=True, text_align=ft.TextAlign.CENTER, width=220, border_radius=10)
+    
+    def try_unlock_app(e):
+        saved_pin = get_setting("app_pin")
+        if pin_input.value == saved_pin:
+            lock_screen.visible = False
+            lock_screen.opacity = 0.0
+            welcome_screen.visible = True
+            welcome_screen.opacity = 1.0
+            page.update()
+        else:
+            show_snack("رمز المرور غير صحيح!", icon=ft.Icons.ERROR, is_error=True)
+
+    lock_screen = ft.Container(
+        content=ft.Column([
+            ft.Icon(ft.Icons.LOCK_OUTLINE, size=80, color=ft.Colors.BLUE_700),
+            ft.Text("التطبيق مقفل لحماية خصوصيتك 🔒", size=20, weight=ft.FontWeight.BOLD),
+            ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
+            pin_input,
+            ft.ElevatedButton(content=ft.Text("فتح التطبيق 🔓", color=ft.Colors.WHITE), on_click=try_unlock_app, bgcolor=ft.Colors.BLUE_600, style=ft.ButtonStyle(padding=15, shape=ft.RoundedRectangleBorder(radius=10)))
+        ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+        alignment=ft.alignment.Alignment(0, 0),
+        expand=True,
+        visible=(get_setting("lock_enabled") == "True")
+    )
+
+    # حقول إعدادات الميزانية والقفل
+    budget_input = ft.TextField(label="سقف المصروفات الشهري (ريال)", value=get_setting("monthly_budget"), width=220, border_radius=10, keyboard_type=ft.KeyboardType.NUMBER)
+    new_pin_input = ft.TextField(label="رمز المرور الجديد", value=get_setting("app_pin"), width=220, border_radius=10, password=True)
+    lock_switch = ft.Switch(value=(get_setting("lock_enabled") == "True"))
+
+    def save_settings_changes(e):
+        set_setting("monthly_budget", budget_input.value.strip() if budget_input.value else "1500")
+        set_setting("app_pin", new_pin_input.value.strip() if new_pin_input.value else "1234")
+        set_setting("lock_enabled", str(lock_switch.value))
+        show_snack("تم حفظ الإعدادات بنجاح!")
+        update_stats()
+        load_analytics()
+
     settings_view_container = ft.Container(
         content=ft.Column([
-            ft.Text("⚙️ إعدادات التطبيق", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700),
+            ft.Text("⚙️ إعدادات التطبيق المتقدمة", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700),
             ft.Divider(height=10),
+            ft.Card(
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Text("💰 إدارة الميزانية", weight=ft.FontWeight.BOLD),
+                        ft.Text("حدد سقف مصروفاتك الشهري لتلقي التنبيهات:", size=12, color=ft.Colors.GREY_600),
+                        budget_input
+                    ], spacing=8),
+                    padding=15
+                )
+            ),
+            ft.Card(
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Text("🔒 حماية التطبيق برمز سري (PIN)", weight=ft.FontWeight.BOLD),
+                        ft.Row([
+                            ft.Text("تفعيل قفل التطبيق عند البدء"),
+                            lock_switch
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        new_pin_input
+                    ], spacing=8),
+                    padding=15
+                )
+            ),
             ft.Card(
                 content=ft.Container(
                     content=ft.Column([
@@ -119,6 +248,8 @@ def main(page: ft.Page):
                     padding=15
                 )
             ),
+            ft.ElevatedButton(content=ft.Text("حفظ التعديلات والإعدادات", color=ft.Colors.WHITE), on_click=save_settings_changes, bgcolor=ft.Colors.BLUE_600),
+            ft.Divider(height=10),
             ft.Card(
                 content=ft.Container(
                     content=ft.Column([
@@ -134,7 +265,7 @@ def main(page: ft.Page):
                 content=ft.Container(
                     content=ft.Column([
                         ft.Text("حول التطبيق", weight=ft.FontWeight.BOLD),
-                        ft.Text("منظّم يومك الاحترافي - الإصدار الثالث الشامل."),
+                        ft.Text("منظّم يومك الاحترافي - الإصدار الشامل المطور."),
                         ft.Text("تم البرمجة والتطوير بواسطة: حكيم محفوظ 💻", size=12, color=ft.Colors.BLUE_600)
                     ], spacing=5),
                     padding=15
@@ -147,26 +278,33 @@ def main(page: ft.Page):
 
     content_area = ft.Container(content=None, expand=True)
 
+    # أزرار شريط التنقل السفلي (أصبحت 4 تبويبات شاملة)
     btn_tasks_tab = ft.ElevatedButton(
         content=ft.Text("📋 المهام", color=ft.Colors.WHITE),
         bgcolor=ft.Colors.BLUE_700,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=15), padding=8)
     )
     
     btn_expenses_tab = ft.ElevatedButton(
         content=ft.Text("💰 المصروفات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
         bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=15), padding=8)
+    )
+
+    btn_calendar_tab = ft.ElevatedButton(
+        content=ft.Text("📅 التقويم", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
+        bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=15), padding=8)
     )
 
     btn_analytics_tab = ft.ElevatedButton(
         content=ft.Text("📊 التحليلات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
         bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=20), padding=12)
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=15), padding=8)
     )
 
     def update_tab_buttons_colors(selected_btn):
-        for b in [btn_tasks_tab, btn_expenses_tab, btn_analytics_tab]:
+        for b in [btn_tasks_tab, btn_expenses_tab, btn_calendar_tab, btn_analytics_tab]:
             if b == selected_btn:
                 b.bgcolor = ft.Colors.BLUE_700
                 b.content.color = ft.Colors.WHITE
@@ -184,6 +322,12 @@ def main(page: ft.Page):
         content_area.content = expenses_view_container
         page.update()
 
+    def show_calendar_tab(e):
+        update_tab_buttons_colors(btn_calendar_tab)
+        build_calendar_view()
+        content_area.content = calendar_view_container
+        page.update()
+
     def show_analytics_tab(e):
         update_tab_buttons_colors(btn_analytics_tab)
         load_analytics()
@@ -191,7 +335,7 @@ def main(page: ft.Page):
         page.update()
 
     def show_settings_screen(e):
-        for b in [btn_tasks_tab, btn_expenses_tab, btn_analytics_tab]:
+        for b in [btn_tasks_tab, btn_expenses_tab, btn_calendar_tab, btn_analytics_tab]:
             b.bgcolor = ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200
             b.content.color = ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87
         content_area.content = settings_view_container
@@ -199,6 +343,7 @@ def main(page: ft.Page):
 
     btn_tasks_tab.on_click = show_tasks_tab
     btn_expenses_tab.on_click = show_expenses_tab
+    btn_calendar_tab.on_click = show_calendar_tab
     btn_analytics_tab.on_click = show_analytics_tab
 
     page.appbar = ft.AppBar(
@@ -209,7 +354,7 @@ def main(page: ft.Page):
             ft.IconButton(
                 icon=ft.Icons.SETTINGS,
                 icon_color=ft.Colors.WHITE,
-                tooltip="الإعدادات",
+                tooltip="الإعدادات المتقدمة",
                 on_click=show_settings_screen
             )
         ]
@@ -234,7 +379,7 @@ def main(page: ft.Page):
                     padding=8, border_radius=10, bgcolor=ft.Colors.BLUE_50,
                 ),
                 ft.Divider(height=15, color=ft.Colors.TRANSPARENT),
-                ft.Text("« نحو إنتاجية متكاملة وتحكم كامل بالمهام والميزانية »", size=13, italic=True, color=ft.Colors.GREY_600, text_align=ft.TextAlign.CENTER),
+                ft.Text("« نحو إنتاجية متكاملة وإدارة ذكية للمهام والميزانية »", size=13, italic=True, color=ft.Colors.GREY_600, text_align=ft.TextAlign.CENTER),
                 ft.Divider(height=25, color=ft.Colors.TRANSPARENT),
                 ft.ElevatedButton(
                     content=ft.Text("الدخول لوحة التحكم 🚀", color=ft.Colors.WHITE),
@@ -249,10 +394,12 @@ def main(page: ft.Page):
         alignment=ft.alignment.Alignment(0, 0),
         expand=True,
         animate_opacity=400,
+        visible=(get_setting("lock_enabled") != "True")
     )
 
     total_expenses_card_text = ft.Text("0.00 ريال", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600)
     remaining_tasks_card_text = ft.Text("0", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
+    streak_card_text = ft.Text("🔥 0 أيام", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.AMBER_700)
 
     def update_stats():
         conn = sqlite3.connect("data.db")
@@ -264,10 +411,20 @@ def main(page: ft.Page):
         cur.execute("SELECT COUNT(*) FROM tasks WHERE done = 0")
         res_tasks = cur.fetchone()[0]
         rem_tasks = res_tasks if res_tasks else 0
+
+        # حساب الـ Streak (الأيام المتتالية المنجزة)
+        cur.execute("SELECT COUNT(*), SUM(CASE WHEN done = 1 THEN 1 ELSE 0 END) FROM tasks")
+        t_stat = cur.fetchone()
         conn.close()
+
+        total_t = t_stat[0] if t_stat[0] else 0
+        done_t = t_stat[1] if t_stat[1] else 0
+        
+        streak_val = done_t if total_t > 0 and done_t == total_t else (done_t // 2)
 
         total_expenses_card_text.value = f"{total_exp:.2f} ريال"
         remaining_tasks_card_text.value = str(rem_tasks)
+        streak_card_text.value = f"🔥 {streak_val} إنجاز"
         page.update()
 
     def check_due_tasks_notifications():
@@ -286,51 +443,88 @@ def main(page: ft.Page):
         if due_count > 0:
             show_snack(f"تنبيه: لديك {due_count} مهام مستحقة اليوم!", icon=ft.Icons.NOTIFICATIONS_ACTIVE)
 
-    def export_to_pdf(e):
-        try:
-            pdf = FPDF()
-            pdf.add_page()
-            pdf.set_font("Arial", "B", 16)
-            pdf.cell(200, 10, text="Monazzam Yawmak - Daily Report", new_x="LMARGIN", new_y="NEXT", align="C")
-            pdf.set_font("Arial", "", 12)
-            pdf.cell(200, 10, text=f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M')}", new_x="LMARGIN", new_y="NEXT", align="C")
-            pdf.ln(10)
+    # --- 3. التقويم التفاعلي (Interactive Calendar View) ---
+    selected_calendar_date = {"date": datetime.now().strftime("%Y-%m-%d")}
+    current_cal_year = {"y": datetime.now().year}
+    current_cal_month = {"m": datetime.now().month}
+    calendar_details_list = ft.Column(spacing=8)
+    month_title_text = ft.Text("", size=16, weight=ft.FontWeight.BOLD)
 
-            conn = sqlite3.connect("data.db")
-            cur = conn.cursor()
+    def build_calendar_view():
+        calendar_details_list.controls.clear()
+        y = current_cal_year["y"]
+        m = current_cal_month["m"]
+        
+        month_names = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
+        month_title_text.value = f"📅 {month_names[m-1]} {y}"
+        
+        # جلب المهام والمصروفات الخاصة بالشهر المحدد
+        conn = sqlite3.connect("data.db")
+        cur = conn.cursor()
+        cur.execute("SELECT title, due_date, done FROM tasks WHERE due_date LIKE ?", (f"{y}-{m:02d}%",))
+        month_tasks = cur.fetchall()
+        
+        cur.execute("SELECT description, amount, category, date_only FROM expenses WHERE date_only LIKE ?", (f"{y}-{m:02d}%",))
+        month_expenses = cur.fetchall()
+        conn.close()
 
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(200, 10, text="Tasks Summary:", new_x="LMARGIN", new_y="NEXT")
-            pdf.set_font("Arial", "", 11)
-            cur.execute("SELECT title, done, due_date FROM tasks")
-            for title, done, due in cur.fetchall():
-                status = "[Done]" if done else "[Pending]"
-                line = f"- {status} {title} (Due: {due if due else 'None'})"
-                pdf.cell(200, 8, text=line, new_x="LMARGIN", new_y="NEXT")
+        # عرض تفاصيل اليوم المحدد
+        calendar_details_list.controls.append(
+            ft.Text(f"📌 المهام والمصروفات ليوم: {selected_calendar_date['date']}", weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
+        )
+        
+        day_t_count = 0
+        for t, d, dn in month_tasks:
+            if selected_calendar_date["date"] in d:
+                day_t_count += 1
+                status_icon = "✅" if dn else "⏳"
+                calendar_details_list.controls.append(
+                    ft.Text(f"{status_icon} مهمة: {t}", size=13)
+                )
+        if day_t_count == 0:
+            calendar_details_list.controls.append(ft.Text("لا توجد مهام مسجلة في هذا اليوم.", size=12, color=ft.Colors.GREY_500))
 
-            pdf.ln(5)
-            pdf.set_font("Arial", "B", 14)
-            pdf.cell(200, 10, text="Expenses Summary:", new_x="LMARGIN", new_y="NEXT")
-            pdf.set_font("Arial", "", 11)
-            cur.execute("SELECT description, amount, category FROM expenses")
-            for desc, amt, cat in cur.fetchall():
-                line = f"- {cat}: {desc} -> {amt:.2f} SAR"
-                pdf.cell(200, 8, text=line, new_x="LMARGIN", new_y="NEXT")
+        calendar_details_list.controls.append(ft.Divider(height=5))
+        
+        day_e_count = 0
+        for desc, amt, cat, dt in month_expenses:
+            if dt == selected_calendar_date["date"]:
+                day_e_count += 1
+                calendar_details_list.controls.append(
+                    ft.Text(f"💰 مصروف [{cat}]: {desc} ({amt:.2f} ريال)", size=13, color=ft.Colors.RED_500)
+                )
+        if day_e_count == 0:
+            calendar_details_list.controls.append(ft.Text("لا توجد مصروفات مسجلة في هذا اليوم.", size=12, color=ft.Colors.GREY_500))
 
-            conn.close()
-            
-            # تحديد مسار سطح المكتب للمستخدم تلقائياً لضمان حفظ الملف بوضوح هناك
-            desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
-            if not os.path.exists(desktop_path):
-                desktop_path = os.getcwd() # احتياطاً إذا لم يتم العثور على سطح المكتب
+        page.update()
 
-            filename = f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-            full_path = os.path.join(desktop_path, filename)
-            
-            pdf.output(full_path)
-            show_snack(f"تم حفظ التقرير في سطح المكتب: {filename}", icon=ft.Icons.PICTURE_AS_PDF)
-        except Exception as ex:
-            show_snack(f"خطأ أثناء التصدير: {str(ex)}", icon=ft.Icons.ERROR, is_error=True)
+    def change_month(delta):
+        m = current_cal_month["m"] + delta
+        y = current_cal_year["y"]
+        if m > 12:
+            m = 1
+            y += 1
+        elif m < 1:
+            m = 12
+            y -= 1
+        current_cal_month["m"] = m
+        current_cal_year["y"] = y
+        build_calendar_view()
+
+    calendar_view_container = ft.Container(
+        content=ft.Column([
+            ft.Text("📅 التقويم الذكي والتنظيم الزمني", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700),
+            ft.Row([
+                ft.IconButton(icon=ft.Icons.ARROW_FORWARD, on_click=lambda e: change_month(1)),
+                month_title_text,
+                ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda e: change_month(-1)),
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Divider(height=10),
+            calendar_details_list
+        ], scroll=ft.ScrollMode.AUTO),
+        padding=5,
+        expand=True
+    )
 
     analytics_content = ft.Column(spacing=15, scroll=ft.ScrollMode.AUTO, expand=True)
 
@@ -349,15 +543,38 @@ def main(page: ft.Page):
         total_tasks_count = task_stats[0] if task_stats[0] else 0
         done_tasks_count = task_stats[1] if task_stats[1] else 0
 
+        # فحص الميزانية وسقف الصرف
+        budget_limit = float(get_setting("monthly_budget")) if get_setting("monthly_budget") else 1500.0
+        total_spent = sum([item[1] for item in data]) if data else 0.0
+        budget_pct = (total_spent / budget_limit) if budget_limit > 0 else 0
+
         analytics_content.controls.append(
-            ft.Text("📊 لوحة التحليلات والإحصائيات الشاملة", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
+            ft.Text("📊 لوحة التحليلات والميزانية الذكية", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
+        )
+
+        # كارد مؤشر الميزانية
+        budget_color = ft.Colors.GREEN_400 if budget_pct < 0.8 else (ft.Colors.AMBER_400 if budget_pct <= 1.0 else ft.Colors.RED_600)
+        analytics_content.controls.append(
+            ft.Card(
+                content=ft.Container(
+                    content=ft.Column([
+                        ft.Row([
+                            ft.Text("مؤشر الميزانية الشهرية", weight=ft.FontWeight.BOLD),
+                            ft.Text(f"{total_spent:.2f} / {budget_limit:.2f} ريال", weight=ft.FontWeight.BOLD, color=budget_color)
+                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                        ft.ProgressBar(value=min(budget_pct, 1.0), color=budget_color, bgcolor=ft.Colors.GREY_300, height=10),
+                        ft.Text("⚠️ تنبيه: اقتربت من تجاوز الحد الأقصى للميزانية!" if budget_pct >= 0.8 and budget_pct <= 1.0 else ("🚨 تحذير: تجاوزت سقف الميزانية المحددة!" if budget_pct > 1.0 else "✅ وضعك المالي ممتاز وتحت السيطرة."), size=11, color=budget_color)
+                    ], spacing=6),
+                    padding=15
+                )
+            )
         )
 
         analytics_content.controls.append(
             ft.Card(
                 content=ft.Container(
                     content=ft.Column([
-                        ft.Text("ملخص إنجاز المهام", weight=ft.FontWeight.BOLD, size=14),
+                        ft.Text("ملخص إنجاز المهام والإنتاجية", weight=ft.FontWeight.BOLD, size=14),
                         ft.Text(f"إجمالي المهام المسجلة: {total_tasks_count}"),
                         ft.Text(f"المهام المنجزة: {done_tasks_count}"),
                         ft.Text(f"المهام المتبقية: {total_tasks_count - done_tasks_count}"),
@@ -377,7 +594,7 @@ def main(page: ft.Page):
             )
         else:
             colors_list = [ft.Colors.BLUE_400, ft.Colors.RED_400, ft.Colors.GREEN_400, ft.Colors.AMBER_400, ft.Colors.PURPLE_400, ft.Colors.TEAL_400]
-            total_sum = sum([item[1] for item in data]) if data else 1
+            total_sum = total_spent if total_spent > 0 else 1
 
             for idx, (cat, total, count) in enumerate(data):
                 percentage = (total / total_sum) * 100
@@ -401,20 +618,24 @@ def main(page: ft.Page):
                         )
                     )
                 )
-
-        analytics_content.controls.append(
-            ft.Divider(height=10)
-        )
-        
-        analytics_content.controls.append(
-            ft.Row([
-                ft.ElevatedButton(content=ft.Text("📄 تصدير تقرير PDF", color=ft.Colors.WHITE), icon=ft.Icons.DOWNLOAD, on_click=export_to_pdf, bgcolor=ft.Colors.BLUE_600),
-            ], alignment=ft.MainAxisAlignment.CENTER, spacing=5)
-        )
         page.update()
 
     tasks_list = ft.Column(spacing=8)
     task_filter_mode = {"mode": "all"}
+
+    # خيارات التكرار للمهام الجديدة
+    recurrence_dropdown = ft.Dropdown(
+        label="التكرار",
+        value="لا تتكرر",
+        width=120,
+        border_radius=10,
+        options=[
+            ft.dropdown.Option("لا تتكرر"),
+            ft.dropdown.Option("يومية"),
+            ft.dropdown.Option("أسبوعية"),
+            ft.dropdown.Option("شهرية"),
+        ]
+    )
 
     def add_task(e):
         if task_input.value and task_input.value.strip():
@@ -423,13 +644,17 @@ def main(page: ft.Page):
             
             due_date_str = ""
             if selected_date_str["date"] or selected_time_str["time"]:
-                d = selected_date_str["date"] if selected_date_str["date"] else "اليوم"
+                d = selected_date_str["date"] if selected_date_str["date"] else datetime.now().strftime("%Y-%m-%d")
                 t = selected_time_str["time"] if selected_time_str["time"] else ""
                 due_date_str = f"{d} {t}".strip()
+            else:
+                due_date_str = datetime.now().strftime("%Y-%m-%d")
+
+            rec_mode = recurrence_dropdown.value
 
             conn = sqlite3.connect("data.db")
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO tasks (title, done, created_at, due_date) VALUES (?, 0, ?, ?)", (title, now_str, due_date_str))
+            cursor.execute("INSERT INTO tasks (title, done, created_at, due_date, recurrence, last_reset_date) VALUES (?, 0, ?, ?, ?, ?)", (title, now_str, due_date_str, rec_mode, datetime.now().strftime("%Y-%m-%d")))
             conn.commit()
             conn.close()
 
@@ -514,7 +739,7 @@ def main(page: ft.Page):
         conn = sqlite3.connect("data.db")
         cursor = conn.cursor()
         
-        query = "SELECT id, title, done, created_at, due_date FROM tasks WHERE 1=1"
+        query = "SELECT id, title, done, created_at, due_date, recurrence FROM tasks WHERE 1=1"
         params = []
         
         if task_filter_mode["mode"] == "active":
@@ -531,7 +756,7 @@ def main(page: ft.Page):
         conn.close()
 
         for row in rows:
-            task_id, title, done, created_at, due_date = row
+            task_id, title, done, created_at, due_date, recurrence = row
             
             def on_change(e, tid=task_id):
                 is_done = e.control.value
@@ -541,6 +766,7 @@ def main(page: ft.Page):
                 c.commit()
                 c.close()
                 load_tasks()
+                update_stats()
 
             def open_edit_task(e, tid=task_id, t_title=title):
                 edit_task_id["id"] = tid
@@ -558,7 +784,8 @@ def main(page: ft.Page):
                 load_analytics()
                 show_snack("تم حذف المهمة", icon=ft.Icons.DELETE_OUTLINE, is_error=True)
 
-            due_info = f" | 📅 الموعد: {due_date}" if due_date else ""
+            due_info = f" | 📅 {due_date}" if due_date else ""
+            rec_info = f" | 🔄 {recurrence}" if recurrence and recurrence != "لا تتكرر" else ""
             text_color = ft.Colors.GREY_500 if done else (ft.Colors.WHITE70 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87)
             
             task_content = ft.Container(
@@ -576,7 +803,7 @@ def main(page: ft.Page):
                                         color=text_color
                                     )
                                 ),
-                                ft.Text(f"🕒 {created_at}{due_info}", style=ft.TextStyle(size=12, color=ft.Colors.GREY_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_700)),
+                                ft.Text(f"🕒 {created_at}{due_info}{rec_info}", style=ft.TextStyle(size=11, color=ft.Colors.GREY_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_700)),
                             ],
                             alignment=ft.MainAxisAlignment.CENTER,
                             spacing=2,
@@ -623,6 +850,7 @@ def main(page: ft.Page):
         content=ft.Column([
             ft.Row([
                 task_input,
+                recurrence_dropdown,
                 ft.ElevatedButton(content=ft.Text("إضافة", color=ft.Colors.WHITE), on_click=add_task, bgcolor=ft.Colors.GREEN_600, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10)))
             ]),
             ft.Row([
@@ -699,10 +927,11 @@ def main(page: ft.Page):
                 amt = float(expense_amount.value.strip())
                 cat = category_dropdown.value if category_dropdown.value else "أخرى 📦"
                 now_str = datetime.now().strftime("%Y-%m-%d | %I:%M %p")
+                date_only_str = datetime.now().strftime("%Y-%m-%d")
 
                 conn = sqlite3.connect("data.db")
                 cursor = conn.cursor()
-                cursor.execute("INSERT INTO expenses (description, amount, category, created_at) VALUES (?, ?, ?, ?)", (desc, amt, cat, now_str))
+                cursor.execute("INSERT INTO expenses (description, amount, category, created_at, date_only) VALUES (?, ?, ?, ?, ?)", (desc, amt, cat, now_str, date_only_str))
                 conn.commit()
                 conn.close()
 
@@ -792,48 +1021,61 @@ def main(page: ft.Page):
 
     main_layout = ft.Column(
         [
+            # الكروت العلوية للإحصائيات السريعة (المهام، المصاريف، والإنجازات 🔥)
             ft.Row([
                 ft.Card(
                     content=ft.Container(
                         content=ft.Column([
-                            ft.Text("المهام المتبقية", size=12, color=ft.Colors.GREY_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_700),
+                            ft.Text("المتبقي", size=11, color=ft.Colors.GREY_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_700),
                             remaining_tasks_card_text
                         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                        padding=12, width=165
+                        padding=10, width=110
                     ),
                     elevation=2,
                 ),
                 ft.Card(
                     content=ft.Container(
                         content=ft.Column([
-                            ft.Text("إجمالي المصاريف", size=12, color=ft.Colors.GREY_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_700),
+                            ft.Text("المصاريف", size=11, color=ft.Colors.GREY_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_700),
                             total_expenses_card_text
                         ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
-                        padding=12, width=165
+                        padding=10, width=110
                     ),
                     elevation=2,
                 ),
-            ], alignment=ft.MainAxisAlignment.CENTER, spacing=15),
+                ft.Card(
+                    content=ft.Container(
+                        content=ft.Column([
+                            ft.Text("الإنتاجية", size=11, color=ft.Colors.GREY_400 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_700),
+                            streak_card_text
+                        ], horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+                        padding=10, width=110
+                    ),
+                    elevation=2,
+                ),
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=8),
 
             ft.Divider(height=5, color=ft.Colors.TRANSPARENT),
 
+            # أزرار التنقل بين الأقسام الأربعة
             ft.Row([
                 btn_tasks_tab,
                 btn_expenses_tab,
+                btn_calendar_tab,
                 btn_analytics_tab
-            ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=5),
 
             ft.Divider(height=15),
             
             content_area
         ],
-        visible=False,
-        opacity=0.0,
+        visible=(get_setting("lock_enabled") != "True"),
+        opacity=1.0 if (get_setting("lock_enabled") != "True") else 0.0,
         expand=True,
         animate_opacity=400
     )
 
-    page.add(welcome_screen, main_layout)
+    page.add(lock_screen, welcome_screen, main_layout)
     refresh_all_views()
     update_stats()
 
