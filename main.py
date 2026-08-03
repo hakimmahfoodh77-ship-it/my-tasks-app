@@ -398,6 +398,7 @@ def main(page: ft.Page):
             ft.Divider(height=10)
         )
         
+        # زر تصدير PDF واحد فقط بدون تكرار
         analytics_content.controls.append(
             ft.Row([
                 ft.ElevatedButton(content=ft.Text("📄 تصدير تقرير PDF", color=ft.Colors.WHITE), icon=ft.Icons.DOWNLOAD, on_click=export_to_pdf, bgcolor=ft.Colors.BLUE_600),
@@ -582,7 +583,6 @@ def main(page: ft.Page):
                 padding=10,
             )
 
-            # استخدام Alignment الآمن لتجنب أي أخطاء في إصدارات Flet
             dismissible_card = ft.Dismissible(
                 content=ft.Card(content=task_content),
                 background=ft.Container(bgcolor=ft.Colors.RED_400, alignment=ft.alignment.Alignment(1, 0), padding=20, content=ft.Icon(ft.Icons.DELETE, color=ft.Colors.WHITE)),
