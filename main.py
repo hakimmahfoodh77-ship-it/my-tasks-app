@@ -17,7 +17,6 @@ def init_db():
             last_reset_date TEXT
         )
     """)
-    # التحقق من وجود الأعمدة الجديدة في جدول المهام للتوافق مع التحديثات
     for col, col_type in [("due_date", "TEXT"), ("recurrence", "TEXT DEFAULT 'لا تتكرر'"), ("last_reset_date", "TEXT")]:
         try:
             cursor.execute(f"ALTER TABLE tasks ADD COLUMN {col} {col_type}")
@@ -53,7 +52,6 @@ def init_db():
         except sqlite3.IntegrityError:
             pass
 
-    # جدول الإعدادات العامة (الميزانية، رمز القفل، إلخ)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
@@ -61,7 +59,6 @@ def init_db():
         )
     """)
     
-    # القيم الافتراضية
     defaults = {"monthly_budget": "1500", "app_pin": "1234", "lock_enabled": "False"}
     for k, v in defaults.items():
         cursor.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (k, v))
@@ -134,7 +131,6 @@ def main(page: ft.Page):
         load_analytics()
         show_snack("تم مسح كافة البيانات بنجاح", icon=ft.Icons.WARNING, is_error=True)
 
-    # --- معالجة المهام المتكررة تلقائياً عند فتح التطبيق ---
     def check_recurring_tasks():
         today_str = datetime.now().strftime("%Y-%m-%d")
         conn = sqlite3.connect("data.db")
@@ -169,7 +165,6 @@ def main(page: ft.Page):
 
     check_recurring_tasks()
 
-    # --- شاشة قفل التطبيق بـ PIN ---
     pin_input = ft.TextField(label="أدخل رمز المرور (افتراضي: 1234)", password=True, can_reveal_password=True, text_align=ft.TextAlign.CENTER, width=220, border_radius=10)
     
     def try_unlock_app(e):
@@ -196,7 +191,6 @@ def main(page: ft.Page):
         visible=(get_setting("lock_enabled") == "True")
     )
 
-    # حقول إعدادات الميزانية والقفل
     budget_input = ft.TextField(label="سقف المصروفات الشهري (ريال)", value=get_setting("monthly_budget"), width=220, border_radius=10, keyboard_type=ft.KeyboardType.NUMBER)
     new_pin_input = ft.TextField(label="رمز المرور الجديد", value=get_setting("app_pin"), width=220, border_radius=10, password=True)
     lock_switch = ft.Switch(value=(get_setting("lock_enabled") == "True"))
@@ -226,7 +220,7 @@ def main(page: ft.Page):
             ft.Card(
                 content=ft.Container(
                     content=ft.Column([
-                        ft.Text("🔒 حماية التطبيق برمز سري (PIN)", weight=ft.FontWeight.BOLD),
+                        ft.Text("🔒 حماية التطبيق بررمز سري (PIN)", weight=ft.FontWeight.BOLD),
                         ft.Row([
                             ft.Text("تفعيل قفل التطبيق عند البدء"),
                             lock_switch
@@ -278,7 +272,6 @@ def main(page: ft.Page):
 
     content_area = ft.Container(content=None, expand=True)
 
-    # أزرار شريط التنقل السفلي (أصبحت 4 تبويبات شاملة)
     btn_tasks_tab = ft.ElevatedButton(
         content=ft.Text("📋 المهام", color=ft.Colors.WHITE),
         bgcolor=ft.Colors.BLUE_700,
@@ -412,7 +405,6 @@ def main(page: ft.Page):
         res_tasks = cur.fetchone()[0]
         rem_tasks = res_tasks if res_tasks else 0
 
-        # حساب الـ Streak (الأيام المتتالية المنجزة)
         cur.execute("SELECT COUNT(*), SUM(CASE WHEN done = 1 THEN 1 ELSE 0 END) FROM tasks")
         t_stat = cur.fetchone()
         conn.close()
@@ -443,7 +435,6 @@ def main(page: ft.Page):
         if due_count > 0:
             show_snack(f"تنبيه: لديك {due_count} مهام مستحقة اليوم!", icon=ft.Icons.NOTIFICATIONS_ACTIVE)
 
-    # --- 3. التقويم التفاعلي (Interactive Calendar View) ---
     selected_calendar_date = {"date": datetime.now().strftime("%Y-%m-%d")}
     current_cal_year = {"y": datetime.now().year}
     current_cal_month = {"m": datetime.now().month}
@@ -458,7 +449,6 @@ def main(page: ft.Page):
         month_names = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
         month_title_text.value = f"📅 {month_names[m-1]} {y}"
         
-        # جلب المهام والمصروفات الخاصة بالشهر المحدد
         conn = sqlite3.connect("data.db")
         cur = conn.cursor()
         cur.execute("SELECT title, due_date, done FROM tasks WHERE due_date LIKE ?", (f"{y}-{m:02d}%",))
@@ -468,7 +458,6 @@ def main(page: ft.Page):
         month_expenses = cur.fetchall()
         conn.close()
 
-        # عرض تفاصيل اليوم المحدد
         calendar_details_list.controls.append(
             ft.Text(f"📌 المهام والمصروفات ليوم: {selected_calendar_date['date']}", weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
         )
@@ -543,7 +532,6 @@ def main(page: ft.Page):
         total_tasks_count = task_stats[0] if task_stats[0] else 0
         done_tasks_count = task_stats[1] if task_stats[1] else 0
 
-        # فحص الميزانية وسقف الصرف
         budget_limit = float(get_setting("monthly_budget")) if get_setting("monthly_budget") else 1500.0
         total_spent = sum([item[1] for item in data]) if data else 0.0
         budget_pct = (total_spent / budget_limit) if budget_limit > 0 else 0
@@ -552,7 +540,6 @@ def main(page: ft.Page):
             ft.Text("📊 لوحة التحليلات والميزانية الذكية", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
         )
 
-        # كارد مؤشر الميزانية
         budget_color = ft.Colors.GREEN_400 if budget_pct < 0.8 else (ft.Colors.AMBER_400 if budget_pct <= 1.0 else ft.Colors.RED_600)
         analytics_content.controls.append(
             ft.Card(
@@ -623,7 +610,6 @@ def main(page: ft.Page):
     tasks_list = ft.Column(spacing=8)
     task_filter_mode = {"mode": "all"}
 
-    # خيارات التكرار للمهام الجديدة
     recurrence_dropdown = ft.Dropdown(
         label="التكرار",
         value="لا تتكرر",
@@ -665,6 +651,7 @@ def main(page: ft.Page):
             time_button_text.value = "الوقت"
             load_tasks()
             load_analytics()
+            update_stats()
             show_snack("تمت إضافة المهمة بنجاح!", icon=ft.Icons.TASK_ALT)
 
     task_input = ft.TextField(
@@ -701,7 +688,7 @@ def main(page: ft.Page):
     time_picker.on_change = on_time_change
 
     edit_task_id = {"id": None}
-    edit_task_input = ft.TextField(label="تعديل نص المهمة", on_submit=lambda e: save_edited_task(e))
+    edit_task_input = ft.TextField(label="تعديل نص المهمة")
 
     def save_edited_task(e):
         if edit_task_id["id"] and edit_task_input.value.strip():
@@ -758,91 +745,74 @@ def main(page: ft.Page):
         for row in rows:
             task_id, title, done, created_at, due_date, recurrence = row
             
-            def on_change(e, tid=task_id):
-                is_done = 1 if e.control.value else 0
-                conn = sqlite3.connect("data.db")
-                cur = conn.cursor()
-                cur.execute("UPDATE tasks SET done = ? WHERE id = ?", (is_done, tid))
-                conn.commit()
-                conn.close()
-                load_tasks()
-                update_stats()
-                load_analytics()
+            def make_checkbox_handler(tid):
+                def on_change_cb(e):
+                    is_done = 1 if e.control.value else 0
+                    conn = sqlite3.connect("data.db")
+                    cur = conn.cursor()
+                    cur.execute("UPDATE tasks SET done = ? WHERE id = ?", (is_done, tid))
+                    conn.commit()
+                    conn.close()
+                    load_tasks()
+                    update_stats()
+                return on_change_cb
 
-            def delete_task(e, tid=task_id):
-                conn = sqlite3.connect("data.db")
-                cur = conn.cursor()
-                cur.execute("DELETE FROM tasks WHERE id = ?", (tid,))
-                conn.commit()
-                conn.close()
-                load_tasks()
-                update_stats()
-                load_analytics()
-                show_snack("تم حذف المهمة", icon=ft.Icons.DELETE_OUTLINE, is_error=True)
+            def make_delete_handler(tid):
+                def on_delete_cb(e):
+                    conn = sqlite3.connect("data.db")
+                    cur = conn.cursor()
+                    cur.execute("DELETE FROM tasks WHERE id = ?", (tid,))
+                    conn.commit()
+                    conn.close()
+                    load_tasks()
+                    update_stats()
+                    load_analytics()
+                    show_snack("تم حذف المهمة", icon=ft.Icons.DELETE, is_error=True)
+                return on_delete_cb
 
-            def open_edit_dialog(e, tid=task_id, current_title=title):
-                edit_task_id["id"] = tid
-                edit_task_input.value = current_title
-                edit_task_dlg.open = True
-                page.update()
+            def make_edit_handler(tid, t_title):
+                def on_edit_cb(e):
+                    edit_task_id["id"] = tid
+                    edit_task_input.value = t_title
+                    edit_task_dlg.open = True
+                    page.update()
+                return on_edit_cb
 
-            rec_badge = f"🔄 {recurrence}" if recurrence != "لا تتكرر" else ""
-            due_badge = f"📅 {due_date}" if due_date else ""
-
+            chk = ft.Checkbox(value=bool(done), label=title, on_change=make_checkbox_handler(task_id))
+            
             tasks_list.controls.append(
                 ft.Card(
                     content=ft.Container(
                         content=ft.Row([
+                            chk,
                             ft.Row([
-                                ft.Checkbox(value=bool(done), on_change=on_change),
-                                ft.Column([
-                                    ft.Text(title, weight=ft.FontWeight.BOLD, decoration=ft.TextDecoration.LINE_THROUGH if done else ft.TextDecoration.NONE),
-                                    ft.Row([
-                                        ft.Text(f"أُضيفَت: {created_at}", size=10, color=ft.Colors.GREY_500),
-                                        ft.Text(due_badge, size=10, color=ft.Colors.BLUE_600 if due_badge else ft.Colors.TRANSPARENT),
-                                        ft.Text(rec_badge, size=10, color=ft.Colors.PURPLE_600 if rec_badge else ft.Colors.TRANSPARENT),
-                                    ], spacing=8)
-                                ], spacing=2, alignment=ft.MainAxisAlignment.CENTER)
-                            ], spacing=5),
-                            ft.Row([
-                                ft.IconButton(icon=ft.Icons.EDIT, icon_size=18, icon_color=ft.Colors.BLUE_400, on_click=open_edit_dialog),
-                                ft.IconButton(icon=ft.Icons.DELETE, icon_size=18, icon_color=ft.Colors.RED_400, on_click=delete_task),
+                                ft.IconButton(icon=ft.Icons.EDIT, icon_size=16, on_click=make_edit_handler(task_id, title)),
+                                ft.IconButton(icon=ft.Icons.DELETE, icon_size=16, icon_color=ft.Colors.RED_400, on_click=make_delete_handler(task_id))
                             ], spacing=0)
                         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                         padding=10
                     )
                 )
             )
-        update_stats()
         page.update()
-
-    def set_filter(mode):
-        task_filter_mode["mode"] = mode
-        load_tasks()
 
     tasks_view_container = ft.Container(
         content=ft.Column([
-            ft.Text("📋 إدارة المهام اليومية", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700),
-            search_task_input,
-            ft.Row([
-                ft.Row([
-                    ft.ElevatedButton("الكل", on_click=lambda e: set_filter("all"), style=ft.ButtonStyle(padding=5)),
-                    ft.ElevatedButton("النشطة", on_click=lambda e: set_filter("active"), style=ft.ButtonStyle(padding=5)),
-                    ft.ElevatedButton("المكتملة", on_click=lambda e: set_filter("completed"), style=ft.ButtonStyle(padding=5)),
-                ], spacing=5),
-                recurrence_dropdown
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Row([
                 task_input,
+                recurrence_dropdown,
                 ft.ElevatedButton(content=ft.Text("إضافة", color=ft.Colors.WHITE), on_click=add_task, bgcolor=ft.Colors.BLUE_600)
-            ]),
+            ], spacing=5),
             ft.Row([
-                ft.ElevatedButton(content=date_button_text, icon=ft.Icons.CALENDAR_MONTH, on_click=lambda e: date_picker.pick_date()),
-                ft.ElevatedButton(content=time_button_text, icon=ft.Icons.ACCESS_TIME, on_click=lambda e: time_picker.pick_time()),
+                ft.ElevatedButton(content=ft.Text("تاريخ الاستحقاق", size=12), icon=ft.Icons.CALENDAR_MONTH, on_click=lambda e: date_picker.pick_date()),
+                date_button_text,
+                ft.ElevatedButton(content=ft.Text("وقت الاستحقاق", size=12), icon=ft.Icons.ACCESS_TIME, on_click=lambda e: time_picker.pick_time()),
+                time_button_text,
             ], spacing=10),
-            ft.Divider(height=10),
-            ft.Container(content=tasks_list, expand=True, scroll=ft.ScrollMode.AUTO)
-        ], spacing=10, expand=True),
+            search_task_input,
+            ft.Divider(height=5),
+            tasks_list
+        ], scroll=ft.ScrollMode.AUTO),
         padding=5,
         expand=True
     )
@@ -850,47 +820,46 @@ def main(page: ft.Page):
     # --- إدارة المصروفات ---
     expenses_list = ft.Column(spacing=8)
     expense_desc_input = ft.TextField(label="وصف المصروف", expand=True, border_radius=10)
-    expense_amount_input = ft.TextField(label="المبلغ", width=110, border_radius=10, keyboard_type=ft.KeyboardType.NUMBER)
+    expense_amount_input = ft.TextField(label="المبلغ", width=100, border_radius=10, keyboard_type=ft.KeyboardType.NUMBER)
+    
+    conn = sqlite3.connect("data.db")
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM categories")
+    cat_rows = cur.fetchall()
+    conn.close()
+    cat_options = [ft.dropdown.Option(r[0]) for r in cat_rows] if cat_rows else [ft.dropdown.Option("أخرى 📦")]
 
-    def get_categories():
-        conn = sqlite3.connect("data.db")
-        cur = conn.cursor()
-        cur.execute("SELECT name FROM categories")
-        cats = [row[0] for row in cur.fetchall()]
-        conn.close()
-        return cats
-
-    expense_cat_dropdown = ft.Dropdown(
+    expense_category_dropdown = ft.Dropdown(
         label="التصنيف",
-        value="طعام 🍔",
-        width=140,
-        border_radius=10,
-        options=[ft.dropdown.Option(c) for c in get_categories()]
+        value=cat_options[0].key if cat_options else "أخرى 📦",
+        options=cat_options,
+        width=150,
+        border_radius=10
     )
 
     def add_expense(e):
         if expense_desc_input.value and expense_amount_input.value:
             try:
-                amt = float(expense_amount_input.value)
+                amount = float(expense_amount_input.value)
                 desc = expense_desc_input.value.strip()
-                cat = expense_cat_dropdown.value
+                cat = expense_category_dropdown.value
                 now_str = datetime.now().strftime("%Y-%m-%d | %I:%M %p")
-                date_only = datetime.now().strftime("%Y-%m-%d")
+                date_only_str = datetime.now().strftime("%Y-%m-%d")
 
                 conn = sqlite3.connect("data.db")
                 cur = conn.cursor()
-                cur.execute("INSERT INTO expenses (description, amount, category, created_at, date_only) VALUES (?, ?, ?, ?, ?)", (desc, amt, cat, now_str, date_only))
+                cur.execute("INSERT INTO expenses (description, amount, category, created_at, date_only) VALUES (?, ?, ?, ?, ?)", (desc, amount, cat, now_str, date_only_str))
                 conn.commit()
                 conn.close()
 
                 expense_desc_input.value = ""
                 expense_amount_input.value = ""
                 load_expenses()
-                update_stats()
                 load_analytics()
-                show_snack("تمت إضافة المصروف بنجاح", icon=ft.Icons.ATTACH_MONEY)
+                update_stats()
+                show_snack("تمت إضافة المصروف بنجاح!", icon=ft.Icons.ATTACH_MONEY)
             except ValueError:
-                show_snack("الرجاء إدخال مبلغ صحيح (رقم)", icon=ft.Icons.ERROR, is_error=True)
+                show_snack("يرجى إدخال مبلغ صحيح!", icon=ft.Icons.ERROR, is_error=True)
 
     def load_expenses():
         expenses_list.controls.clear()
@@ -900,17 +869,21 @@ def main(page: ft.Page):
         rows = cur.fetchall()
         conn.close()
 
-        for eid, desc, amt, cat, created_at in rows:
-            def delete_exp(e, id=eid):
-                conn = sqlite3.connect("data.db")
-                cur = conn.cursor()
-                cur.execute("DELETE FROM expenses WHERE id = ?", (id,))
-                conn.commit()
-                conn.close()
-                load_expenses()
-                update_stats()
-                load_analytics()
-                show_snack("تم حذف المصروف", icon=ft.Icons.DELETE, is_error=True)
+        for row in rows:
+            eid, desc, amount, cat, created_at = row
+            
+            def make_del_exp_handler(exp_id):
+                def del_exp(e):
+                    conn = sqlite3.connect("data.db")
+                    cur = conn.cursor()
+                    cur.execute("DELETE FROM expenses WHERE id = ?", (exp_id,))
+                    conn.commit()
+                    conn.close()
+                    load_expenses()
+                    load_analytics()
+                    update_stats()
+                    show_snack("تم حذف المصروف", icon=ft.Icons.DELETE, is_error=True)
+                return del_exp
 
             expenses_list.controls.append(
                 ft.Card(
@@ -918,9 +891,9 @@ def main(page: ft.Page):
                         content=ft.Row([
                             ft.Column([
                                 ft.Text(f"{desc} [{cat}]", weight=ft.FontWeight.BOLD),
-                                ft.Text(f"{amt:.2f} ريال - {created_at}", size=11, color=ft.Colors.GREY_600)
+                                ft.Text(f"{amount:.2f} ريال - {created_at}", size=11, color=ft.Colors.GREY_600)
                             ], spacing=2),
-                            ft.IconButton(icon=ft.Icons.DELETE, icon_size=18, icon_color=ft.Colors.RED_400, on_click=delete_exp)
+                            ft.IconButton(icon=ft.Icons.DELETE, icon_color=ft.Colors.RED_400, on_click=make_del_exp_handler(eid))
                         ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                         padding=12
                     )
@@ -930,59 +903,48 @@ def main(page: ft.Page):
 
     expenses_view_container = ft.Container(
         content=ft.Column([
-            ft.Text("💰 إدارة المصروفات والميزانية", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700),
             ft.Row([
                 expense_desc_input,
-                expense_amount_input
-            ]),
+                expense_amount_input,
+            ], spacing=5),
             ft.Row([
-                expense_cat_dropdown,
-                ft.ElevatedButton(content=ft.Text("إضافة مصروف 💸", color=ft.Colors.WHITE), on_click=add_expense, bgcolor=ft.Colors.RED_600, expand=True)
-            ]),
-            ft.Divider(height=10),
-            ft.Container(content=expenses_list, expand=True, scroll=ft.ScrollMode.AUTO)
-        ], spacing=10, expand=True),
+                expense_category_dropdown,
+                ft.ElevatedButton(content=ft.Text("إضافة مصروف", color=ft.Colors.WHITE), on_click=add_expense, bgcolor=ft.Colors.GREEN_600)
+            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            ft.Divider(height=5),
+            expenses_list
+        ], scroll=ft.ScrollMode.AUTO),
         padding=5,
         expand=True
     )
 
-    # الهيكل الرئيسي (Main Layout)
-    content_area.content = tasks_view_container
-    load_tasks()
-    load_expenses()
-
-    main_layout = ft.Container(
-        content=ft.Column([
-            # بطاقات الملخص السريع
+    # --- هيكل التطبيق الأساسي ---
+    main_layout = ft.Column(
+        [
             ft.Row([
-                ft.Card(content=ft.Container(content=ft.Column([ft.Text("المصروفات", size=11, color=ft.Colors.GREY_600), total_expenses_card_text], spacing=2), padding=10), expand=True),
-                ft.Card(content=ft.Container(content=ft.Column([ft.Text("المهام المتبقية", size=11, color=ft.Colors.GREY_600), remaining_tasks_card_text], spacing=2), padding=10), expand=True),
-                ft.Card(content=ft.Container(content=ft.Column([ft.Text("مؤشر الإنجاز", size=11, color=ft.Colors.GREY_600), streak_card_text], spacing=2), padding=10), expand=True),
-            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-            ft.Divider(height=5),
+                ft.Card(content=ft.Container(content=ft.Column([ft.Text("إجمالي المصروفات", size=12), total_expenses_card_text], alignment=ft.MainAxisAlignment.CENTER), padding=10), expand=True),
+                ft.Card(content=ft.Container(content=ft.Column([ft.Text("المهام المتبقية", size=12), remaining_tasks_card_text], alignment=ft.MainAxisAlignment.CENTER), padding=10), expand=True),
+                ft.Card(content=ft.Container(content=ft.Column([ft.Text("الإنتاجية", size=12), streak_card_text], alignment=ft.MainAxisAlignment.CENTER), padding=10), expand=True),
+            ]),
             content_area,
-            ft.Divider(height=5),
-            # شريط التنقل السفلي الاحترافي
+            ft.Divider(height=1),
             ft.Row([
                 btn_tasks_tab,
                 btn_expenses_tab,
                 btn_calendar_tab,
-                btn_analytics_tab
-            ], alignment=ft.MainAxisAlignment.SPACE_EVENELY)
-        ], spacing=5, expand=True),
+                btn_analytics_tab,
+            ], alignment=ft.MainAxisAlignment.SPACE_AROUND)
+        ],
         expand=True,
         visible=(get_setting("lock_enabled") != "True"),
-        opacity=1.0 if get_setting("lock_enabled") != "True" else 0.0
+        animate_opacity=400
     )
 
-    def refresh_all_views():
-        update_tab_buttons_colors(btn_tasks_tab)
-        content_area.content = tasks_view_container
-        load_tasks()
-        load_expenses()
-
-    page.add(lock_screen, welcome_screen, main_layout)
+    content_area.content = tasks_view_container
+    load_tasks()
+    load_expenses()
     update_stats()
 
-if __name__ == "__main__":
-    ft.app(target=main)
+    page.add(lock_screen, welcome_screen, main_layout)
+
+ft.app(target=main)
