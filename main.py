@@ -272,25 +272,29 @@ def main(page: ft.Page):
     btn_tasks_tab = ft.ElevatedButton(
         content=ft.Text("📋 المهام", color=ft.Colors.WHITE),
         bgcolor=ft.Colors.BLUE_700,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=15), padding=8)
+        expand=True,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=8)
     )
     
     btn_expenses_tab = ft.ElevatedButton(
         content=ft.Text("💰 المصروفات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
         bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=15), padding=8)
+        expand=True,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=8)
     )
 
     btn_calendar_tab = ft.ElevatedButton(
         content=ft.Text("📅 التقويم", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
         bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=15), padding=8)
+        expand=True,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=8)
     )
 
     btn_analytics_tab = ft.ElevatedButton(
         content=ft.Text("📊 التحليلات", color=ft.Colors.WHITE if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.BLACK87),
         bgcolor=ft.Colors.GREY_800 if page.theme_mode == ft.ThemeMode.DARK else ft.Colors.GREY_200,
-        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=15), padding=8)
+        expand=True,
+        style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10), padding=8)
     )
 
     def update_tab_buttons_colors(selected_btn):
@@ -921,7 +925,7 @@ def main(page: ft.Page):
         expand=True
     )
 
-    # --- هيكل التطبيق الأساسي (نقل الأزرار لتكون تحت الإحصائيات مباشرة) ---
+    # --- هيكل التطبيق الأساسي (إصطفاف أزرار التنقل بجانب بعضها بدون فراغات متفرقة) ---
     main_layout = ft.Column(
         [
             ft.Row([
@@ -930,13 +934,13 @@ def main(page: ft.Page):
                 ft.Card(content=ft.Container(content=ft.Column([ft.Text("إجمالي المصروفات", size=11, color=ft.Colors.GREY_700, text_align=ft.TextAlign.CENTER), total_expenses_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), width=125),
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
             
-            # أزرار التنقل أصبحت الآن تحت بطاقات الإحصائيات مباشرة وقبل محتوى الصفحة
+            # أزرار التنقل متجاورة بجانب بعضها بفضل خاصية expand وتحديد التباعد الصغير
             ft.Row([
                 btn_tasks_tab,
                 btn_expenses_tab,
                 btn_calendar_tab,
                 btn_analytics_tab,
-            ], alignment=ft.MainAxisAlignment.SPACE_AROUND),
+            ], alignment=ft.MainAxisAlignment.CENTER, spacing=6),
             
             ft.Divider(height=5),
             
