@@ -682,9 +682,10 @@ def main(page: ft.Page):
     date_picker.on_change = on_date_change
     time_picker.on_change = on_time_change
 
-    # تصحيح فتح منتقي التاريخ والوقت بالطريقة الآمنة والحديثة
+    # طريقة آمنة ومتوافقة تماماً لإظهار التاريخ والوقت
     def open_date_picker(e):
-        page.open(date_picker)
+        date_picker.open = True
+        page.update()
 
     def open_time_picker(e):
         time_picker.open = True
@@ -921,22 +922,19 @@ def main(page: ft.Page):
         expand=True
     )
 
-    # --- هيكل التطبيق الأساسي (تم تعديل البطاقات الثلاث العلوية لتأخذ حجم محتواها فقط بدون تمدد عرضي) ---
+    # --- هيكل التطبيق الأساسي ---
     main_layout = ft.Column(
         [
-            # البطاقات العلوية مضغوطة على قدر مساحة النص فقط وموزعة بمسافات متناسقة
             ft.Row([
                 ft.Card(content=ft.Container(content=ft.Column([ft.Text("الإنتاجية", size=11, color=ft.Colors.GREY_700, text_align=ft.TextAlign.CENTER), streak_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), width=110),
                 ft.Card(content=ft.Container(content=ft.Column([ft.Text("المهام المتبقية", size=11, color=ft.Colors.GREY_700, text_align=ft.TextAlign.CENTER), remaining_tasks_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), width=110),
                 ft.Card(content=ft.Container(content=ft.Column([ft.Text("إجمالي المصروفات", size=11, color=ft.Colors.GREY_700, text_align=ft.TextAlign.CENTER), total_expenses_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), width=125),
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
             
-            # منطقة المحتوى
             content_area,
             
             ft.Divider(height=1),
             
-            # أزرار التنقل السفلي
             ft.Row([
                 btn_tasks_tab,
                 btn_expenses_tab,
