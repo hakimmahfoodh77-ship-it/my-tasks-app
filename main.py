@@ -162,7 +162,14 @@ def main(page: ft.Page):
 
     check_recurring_tasks()
 
-    pin_input = ft.TextField(label="أدخل رمز المرور (افتراضي: 1234)", password=True, can_reveal_password=True, text_align=ft.TextAlign.CENTER, width=220, border_radius=10)
+    pin_input = ft.TextField(
+        label="أدخل رمز المرور (افتراضي: 1234)", 
+        password=True, 
+        can_reveal_password=True, 
+        text_align=ft.TextAlign.CENTER, 
+        width=220, 
+        border_radius=10
+    )
     
     def try_unlock_app(e):
         saved_pin = get_setting("app_pin")
@@ -180,14 +187,21 @@ def main(page: ft.Page):
             ft.Divider(height=10, color=ft.Colors.TRANSPARENT),
             pin_input,
             ft.ElevatedButton(content=ft.Text("فتح التطبيق 🔓", color=ft.Colors.WHITE), on_click=try_unlock_app, bgcolor=ft.Colors.BLUE_600, style=ft.ButtonStyle(padding=15, shape=ft.RoundedRectangleBorder(radius=10)))
-        ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+        ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.AUTO),
         alignment=ft.alignment.Alignment(0, 0),
         expand=True,
         visible=(get_setting("lock_enabled") == "True")
     )
 
     budget_input = ft.TextField(label="سقف المصروفات الشهري (ريال)", value=get_setting("monthly_budget"), width=220, border_radius=10, keyboard_type=ft.KeyboardType.NUMBER)
-    new_pin_input = ft.TextField(label="رمز المرور الجديد", value=get_setting("app_pin"), width=220, border_radius=10, password=True)
+    new_pin_input = ft.TextField(
+        label="رمز المرور الجديد", 
+        value=get_setting("app_pin"), 
+        width=220, 
+        border_radius=10, 
+        password=True, 
+        can_reveal_password=True
+    )
     lock_switch = ft.Switch(value=(get_setting("lock_enabled") == "True"))
 
     def save_settings_changes(e):
@@ -387,6 +401,7 @@ def main(page: ft.Page):
             ],
             alignment=ft.MainAxisAlignment.CENTER,
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+            scroll=ft.ScrollMode.AUTO,
         ),
         alignment=ft.alignment.Alignment(0, 0),
         expand=True,
@@ -587,7 +602,7 @@ def main(page: ft.Page):
             calendar_grid,
             ft.Divider(height=10),
             calendar_details_list
-        ], scroll=ft.ScrollMode.AUTO),
+        ], scroll=ft.ScrollMode.AUTO, expand=True),
         padding=5,
         expand=True
     )
@@ -773,7 +788,7 @@ def main(page: ft.Page):
         page.update()
 
     edit_task_id = {"id": None}
-    edit_task_input = ft.TextField(label="تعديل نص المهمة")
+    edit_task_input = ft.TextField(label="تعديل نص المهمة", on_submit=lambda e: save_edited_task(e))
 
     def save_edited_task(e):
         if edit_task_id["id"] and edit_task_input.value.strip():
@@ -897,30 +912,13 @@ def main(page: ft.Page):
             search_task_input,
             ft.Divider(height=5),
             tasks_list
-        ], scroll=ft.ScrollMode.AUTO),
+        ], scroll=ft.ScrollMode.AUTO, expand=True),
         padding=5,
         expand=True
     )
 
     expenses_list = ft.Column(spacing=8)
-    expense_desc_input = ft.TextField(label="وصف المصروف", expand=True, border_radius=10)
-    expense_amount_input = ft.TextField(label="المبلغ", width=100, border_radius=10, keyboard_type=ft.KeyboardType.NUMBER)
     
-    conn = sqlite3.connect("data.db")
-    cur = conn.cursor()
-    cur.execute("SELECT name FROM categories")
-    cat_rows = cur.fetchall()
-    conn.close()
-    cat_options = [ft.dropdown.Option(r[0]) for r in cat_rows] if cat_rows else [ft.dropdown.Option("أخرى 📦")]
-
-    expense_category_dropdown = ft.Dropdown(
-        label="التصنيف",
-        value=cat_options[0].key if cat_options else "أخرى 📦",
-        options=cat_options,
-        width=150,
-        border_radius=10
-    )
-
     def add_expense(e):
         if expense_desc_input.value and expense_amount_input.value:
             try:
@@ -944,6 +942,24 @@ def main(page: ft.Page):
                 show_snack("تمت إضافة المصروف بنجاح!", icon=ft.Icons.ATTACH_MONEY)
             except ValueError:
                 show_snack("يرجى إدخال مبلغ صحيح!", icon=ft.Icons.ERROR, is_error=True)
+
+    expense_desc_input = ft.TextField(label="وصف المصروف", expand=True, border_radius=10, on_submit=add_expense)
+    expense_amount_input = ft.TextField(label="المبلغ", width=100, border_radius=10, keyboard_type=ft.KeyboardType.NUMBER, on_submit=add_expense)
+    
+    conn = sqlite3.connect("data.db")
+    cur = conn.cursor()
+    cur.execute("SELECT name FROM categories")
+    cat_rows = cur.fetchall()
+    conn.close()
+    cat_options = [ft.dropdown.Option(r[0]) for r in cat_rows] if cat_rows else [ft.dropdown.Option("أخرى 📦")]
+
+    expense_category_dropdown = ft.Dropdown(
+        label="التصنيف",
+        value=cat_options[0].key if cat_options else "أخرى 📦",
+        options=cat_options,
+        width=150,
+        border_radius=10
+    )
 
     def load_expenses():
         expenses_list.controls.clear()
@@ -997,7 +1013,7 @@ def main(page: ft.Page):
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Divider(height=5),
             expenses_list
-        ], scroll=ft.ScrollMode.AUTO),
+        ], scroll=ft.ScrollMode.AUTO, expand=True),
         padding=5,
         expand=True
     )
