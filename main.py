@@ -218,8 +218,7 @@ def main(page: ft.Page):
                 ], spacing=10),
                 padding=15,
                 bgcolor=ft.Colors.BLUE_50 if page.theme_mode == ft.ThemeMode.LIGHT else ft.Colors.GREY_900,
-                border_radius=12,
-                border=ft.border.all(1, ft.Colors.BLUE_200)
+                border_radius=12
             ),
 
             ft.Container(
@@ -236,8 +235,7 @@ def main(page: ft.Page):
                 ], spacing=10),
                 padding=15,
                 bgcolor=ft.Colors.BLUE_50 if page.theme_mode == ft.ThemeMode.LIGHT else ft.Colors.GREY_900,
-                border_radius=12,
-                border=ft.border.all(1, ft.Colors.BLUE_200)
+                border_radius=12
             ),
 
             ft.Card(
@@ -529,8 +527,7 @@ def main(page: ft.Page):
                         content=day_content,
                         bgcolor=bg_color,
                         border_radius=8,
-                        alignment=ft.alignment.alignment.center,
-                        border=ft.border.all(1, ft.Colors.BLUE_400) if is_today else None
+                        alignment=ft.alignment.alignment.center
                     ),
                     on_tap=make_day_click(date_str)
                 )
