@@ -70,7 +70,7 @@ init_db()
 
 # --- 2. واجهة التطبيق الرئيسية ---
 def main(page: ft.Page):
-    page.title = "منظّم يومك الاحترافي 🎯"
+    page.title = "منظّم يومك 🎯"
     page.theme_mode = ft.ThemeMode.LIGHT
     page.padding = 10
     page.rtl = True
@@ -200,53 +200,68 @@ def main(page: ft.Page):
         update_stats()
         load_analytics()
 
+    # تصميم صفحة الإعدادات الجديد المطابق للرسمة (الرمز السري + المظهر الداكن)
     settings_view_container = ft.Container(
         content=ft.Column([
-            ft.Text("⚙️ إعدادات التطبيق المتقدمة", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700),
+            ft.Text("⚙️ إعدادات التطبيق", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700),
             ft.Divider(height=10),
+            
+            # خانة الرمز السري (مطابق لتصميم الرسمة اليدوية)
+            ft.Container(
+                content=ft.Column([
+                    ft.Row([
+                        ft.Icon(ft.Icons.LOCK, color=ft.Colors.BLUE_600, size=24),
+                        ft.Text("الرمز السري", size=16, weight=ft.FontWeight.BOLD),
+                    ], spacing=10),
+                    ft.Text("تفعيل أو تعطيل قفل التطبيق وتغيير الرمز", size=12, color=ft.Colors.GREY_600),
+                    ft.Row([
+                        ft.Text("تفعيل قفل التطبيق"),
+                        lock_switch
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+                    new_pin_input
+                ], spacing=10),
+                padding=15,
+                bgcolor=ft.Colors.BLUE_50 if page.theme_mode == ft.ThemeMode.LIGHT else ft.Colors.GREY_900,
+                border_radius=12,
+                border=ft.border.all(1, ft.Colors.BLUE_200)
+            ),
+
+            # خانة المظهر (مطابق لتصميم الرسمة اليدوية المظهر الداكن/الفاتح)
+            ft.Container(
+                content=ft.Column([
+                    ft.Row([
+                        ft.Icon(ft.Icons.DARK_MODE, color=ft.Colors.BLUE_600, size=24),
+                        ft.Text("المظهر", size=16, weight=ft.FontWeight.BOLD),
+                    ], spacing=10),
+                    ft.Text("التحكم في وضع الشاشة (ليلي / نهاري)", size=12, color=ft.Colors.GREY_600),
+                    ft.Row([
+                        ft.Text("الوضع الليلي / الفاتح"),
+                        ft.Switch(value=page.theme_mode == ft.ThemeMode.DARK, on_change=toggle_theme)
+                    ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
+                ], spacing=10),
+                padding=15,
+                bgcolor=ft.Colors.BLUE_50 if page.theme_mode == ft.ThemeMode.LIGHT else ft.Colors.GREY_900,
+                border_radius=12,
+                border=ft.border.all(1, ft.Colors.BLUE_200)
+            ),
+
             ft.Card(
                 content=ft.Container(
                     content=ft.Column([
                         ft.Text("💰 إدارة الميزانية", weight=ft.FontWeight.BOLD),
-                        ft.Text("حدد سقف مصروفاتك الشهري لتلقي التنبيهات:", size=12, color=ft.Colors.GREY_600),
                         budget_input
                     ], spacing=8),
                     padding=15
                 )
             ),
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("🔒 حماية التطبيق بررمز سري (PIN)", weight=ft.FontWeight.BOLD),
-                        ft.Row([
-                            ft.Text("تفعيل قفل التطبيق عند البدء"),
-                            lock_switch
-                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
-                        new_pin_input
-                    ], spacing=8),
-                    padding=15
-                )
-            ),
-            ft.Card(
-                content=ft.Container(
-                    content=ft.Column([
-                        ft.Text("المظهر والوضع", weight=ft.FontWeight.BOLD),
-                        ft.Row([
-                            ft.Text("الوضع الليلي / النهاري"),
-                            ft.Switch(value=page.theme_mode == ft.ThemeMode.DARK, on_change=toggle_theme)
-                        ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)
-                    ]),
-                    padding=15
-                )
-            ),
-            ft.ElevatedButton(content=ft.Text("حفظ التعديلات والإعدادات", color=ft.Colors.WHITE), on_click=save_settings_changes, bgcolor=ft.Colors.BLUE_600),
+
+            ft.ElevatedButton(content=ft.Text("حفظ التعديلات", color=ft.Colors.WHITE), on_click=save_settings_changes, bgcolor=ft.Colors.BLUE_600, style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=10))),
             ft.Divider(height=10),
+            
             ft.Card(
                 content=ft.Container(
                     content=ft.Column([
                         ft.Text("إدارة البيانات", weight=ft.FontWeight.BOLD, color=ft.Colors.RED_600),
-                        ft.Text("حذف جميع المهام والمصروفات المسجلة نهائياً.", size=12, color=ft.Colors.GREY_600),
-                        ft.Divider(height=5),
                         ft.ElevatedButton(content=ft.Text("مسح كافة البيانات 🗑️", color=ft.Colors.WHITE), on_click=clear_all_data, bgcolor=ft.Colors.RED_600)
                     ], spacing=8),
                     padding=15
@@ -256,7 +271,7 @@ def main(page: ft.Page):
                 content=ft.Container(
                     content=ft.Column([
                         ft.Text("حول التطبيق", weight=ft.FontWeight.BOLD),
-                        ft.Text("منظّم يومك الاحترافي - الإصدار الشامل المطور."),
+                        ft.Text("منظّم يومك - الإصدار الشامل المطور."),
                         ft.Text("تم البرمجة والتطوير بواسطة: حكيم محفوظ 💻", size=12, color=ft.Colors.BLUE_600)
                     ], spacing=5),
                     padding=15
@@ -269,7 +284,6 @@ def main(page: ft.Page):
 
     content_area = ft.Container(content=None, expand=True)
 
-    # أزرار التنقل بمساحة على قد الكلمة (بدون expand وبحجم متناسق)
     btn_tasks_tab = ft.ElevatedButton(
         content=ft.Text("📋 المهام", color=ft.Colors.WHITE),
         bgcolor=ft.Colors.BLUE_700,
@@ -338,14 +352,14 @@ def main(page: ft.Page):
     btn_analytics_tab.on_click = show_analytics_tab
 
     page.appbar = ft.AppBar(
-        title=ft.Text("منظّم يومك الاحترافي 🎯", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
+        title=ft.Text("منظّم يومك 🎯", weight=ft.FontWeight.BOLD, color=ft.Colors.WHITE),
         center_title=True,
         bgcolor=ft.Colors.BLUE_700,
         actions=[
             ft.IconButton(
                 icon=ft.Icons.SETTINGS,
                 icon_color=ft.Colors.WHITE,
-                tooltip="الإعدادات المتقدمة",
+                tooltip="الإعدادات",
                 on_click=show_settings_screen
             )
         ]
@@ -363,7 +377,7 @@ def main(page: ft.Page):
             [
                 ft.Icon(ft.Icons.AUTO_AWESOME, size=80, color=ft.Colors.BLUE_700),
                 ft.Text("مرحباً بك يا حكيم 👋", size=26, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_900, text_align=ft.TextAlign.CENTER),
-                ft.Text("تطبيق منظّم يومك (النسخة الشاملة والمطورة)", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_800, text_align=ft.TextAlign.CENTER),
+                ft.Text("تطبيق منظّم يومك", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.GREY_800, text_align=ft.TextAlign.CENTER),
                 ft.Container(
                     content=ft.Text("تصميم وتطوير: حكيم محفوظ", size=14, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_600),
                     padding=8, border_radius=10, bgcolor=ft.Colors.BLUE_50,
@@ -434,17 +448,49 @@ def main(page: ft.Page):
     selected_calendar_date = {"date": datetime.now().strftime("%Y-%m-%d")}
     current_cal_year = {"y": datetime.now().year}
     current_cal_month = {"m": datetime.now().month}
+    
+    calendar_grid = ft.GridView(
+        runs_count=7,
+        max_extent=48,
+        spacing=4,
+        run_spacing=4,
+        child_aspect_ratio=1.0,
+    )
+    
     calendar_details_list = ft.Column(spacing=8)
     month_title_text = ft.Text("", size=16, weight=ft.FontWeight.BOLD)
 
     def build_calendar_view():
+        calendar_grid.controls.clear()
         calendar_details_list.controls.clear()
+        
         y = current_cal_year["y"]
         m = current_cal_month["m"]
         
         month_names = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
         month_title_text.value = f"📅 {month_names[m-1]} {y}"
         
+        weekdays = ["سبت", "أحد", "إثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة"]
+        for w in weekdays:
+            calendar_grid.controls.append(
+                ft.Container(
+                    content=ft.Text(w, size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700, text_align=ft.TextAlign.CENTER),
+                    alignment=ft.alignment.alignment.center,
+                )
+            )
+            
+        first_day_of_month = datetime(y, m, 1)
+        start_weekday = (first_day_of_month.weekday() + 2) % 7
+        
+        if m == 12:
+            next_month_first = datetime(y + 1, 1, 1)
+        else:
+            next_month_first = datetime(y, m + 1, 1)
+        total_days = (next_month_first - first_day_of_month).days
+
+        for _ in range(start_weekday):
+            calendar_grid.controls.append(ft.Container())
+
         conn = sqlite3.connect("data.db")
         cur = conn.cursor()
         cur.execute("SELECT title, due_date, done FROM tasks WHERE due_date LIKE ?", (f"{y}-{m:02d}%",))
@@ -453,6 +499,47 @@ def main(page: ft.Page):
         cur.execute("SELECT description, amount, category, date_only FROM expenses WHERE date_only LIKE ?", (f"{y}-{m:02d}%",))
         month_expenses = cur.fetchall()
         conn.close()
+
+        today_str = datetime.now().strftime("%Y-%m-%d")
+
+        for day in range(1, total_days + 1):
+            date_str = f"{y}-{m:02d}-{day:02d}"
+            
+            has_tasks = any(date_str in d for t, d, dn in month_tasks)
+            has_expenses = any(dt == date_str for desc, amt, cat, dt in month_expenses)
+            
+            is_selected = (selected_calendar_date["date"] == date_str)
+            is_today = (today_str == date_str)
+            
+            bg_color = ft.Colors.BLUE_600 if is_selected else (ft.Colors.BLUE_50 if is_today else (ft.Colors.GREY_100 if page.theme_mode == ft.ThemeMode.LIGHT else ft.Colors.GREY_900))
+            txt_color = ft.Colors.WHITE if is_selected else (ft.Colors.BLUE_900 if is_today else (ft.Colors.BLACK87 if page.theme_mode == ft.ThemeMode.LIGHT else ft.Colors.WHITE))
+
+            def make_day_click(d_str):
+                def on_click(e):
+                    selected_calendar_date["date"] = d_str
+                    build_calendar_view()
+                return on_click
+
+            day_content = ft.Column([
+                ft.Text(str(day), size=12, weight=ft.FontWeight.BOLD, color=txt_color),
+                ft.Row([
+                    ft.Container(width=4, height=4, bgcolor=ft.Colors.GREEN_400, border_radius=2, visible=has_tasks),
+                    ft.Container(width=4, height=4, bgcolor=ft.Colors.RED_400, border_radius=2, visible=has_expenses),
+                ], spacing=2, alignment=ft.MainAxisAlignment.CENTER)
+            ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=2)
+
+            calendar_grid.controls.append(
+                ft.GestureDetector(
+                    content=ft.Container(
+                        content=day_content,
+                        bgcolor=bg_color,
+                        border_radius=8,
+                        alignment=ft.alignment.alignment.center,
+                        border=ft.border.all(1, ft.Colors.BLUE_400) if is_today else None
+                    ),
+                    on_tap=make_day_click(date_str)
+                )
+            )
 
         calendar_details_list.controls.append(
             ft.Text(f"📌 المهام والمصروفات ليوم: {selected_calendar_date['date']}", weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700)
@@ -494,16 +581,18 @@ def main(page: ft.Page):
             y -= 1
         current_cal_month["m"] = m
         current_cal_year["y"] = y
+        selected_calendar_date["date"] = f"{y}-{m:02d}-01"
         build_calendar_view()
 
     calendar_view_container = ft.Container(
         content=ft.Column([
-            ft.Text("📅 التقويم الذكي والتنظيم الزمني", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700),
+            ft.Text("📅 التقويم الشهري الشامل", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700),
             ft.Row([
                 ft.IconButton(icon=ft.Icons.ARROW_FORWARD, on_click=lambda e: change_month(1)),
                 month_title_text,
                 ft.IconButton(icon=ft.Icons.ARROW_BACK, on_click=lambda e: change_month(-1)),
             ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
+            calendar_grid,
             ft.Divider(height=10),
             calendar_details_list
         ], scroll=ft.ScrollMode.AUTO),
@@ -821,7 +910,6 @@ def main(page: ft.Page):
         expand=True
     )
 
-    # --- إدارة المصروفات ---
     expenses_list = ft.Column(spacing=8)
     expense_desc_input = ft.TextField(label="وصف المصروف", expand=True, border_radius=10)
     expense_amount_input = ft.TextField(label="المبلغ", width=100, border_radius=10, keyboard_type=ft.KeyboardType.NUMBER)
@@ -922,7 +1010,6 @@ def main(page: ft.Page):
         expand=True
     )
 
-    # --- هيكل التطبيق الأساسي (أزرار التنقل بحجم الكلمة ومتجاورة في المنتصف) ---
     main_layout = ft.Column(
         [
             ft.Row([
@@ -931,7 +1018,6 @@ def main(page: ft.Page):
                 ft.Card(content=ft.Container(content=ft.Column([ft.Text("إجمالي المصروفات", size=11, color=ft.Colors.GREY_700, text_align=ft.TextAlign.CENTER), total_expenses_card_text], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER), padding=8), width=125),
             ], alignment=ft.MainAxisAlignment.CENTER, spacing=10),
             
-            # أزرار التنقل متجاورة وعلى قدر الكلمة تماماً
             ft.Row([
                 btn_tasks_tab,
                 btn_expenses_tab,
