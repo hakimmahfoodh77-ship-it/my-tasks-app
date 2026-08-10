@@ -2,7 +2,6 @@ import flet as ft
 import sqlite3
 from datetime import datetime, timedelta
 
-# --- 1. إعداد قاعدة البيانات وتحديث الجداول ---
 def init_db():
     conn = sqlite3.connect("data.db")
     cursor = conn.cursor()
@@ -68,7 +67,6 @@ def init_db():
 
 init_db()
 
-# --- 2. واجهة التطبيق الرئيسية ---
 def main(page: ft.Page):
     page.title = "منظّم يومك 🎯"
     page.theme_mode = ft.ThemeMode.LIGHT
@@ -200,13 +198,11 @@ def main(page: ft.Page):
         update_stats()
         load_analytics()
 
-    # تصميم صفحة الإعدادات الجديد المطابق للرسمة (الرمز السري + المظهر الداكن)
     settings_view_container = ft.Container(
         content=ft.Column([
             ft.Text("⚙️ إعدادات التطبيق", size=20, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700),
             ft.Divider(height=10),
             
-            # خانة الرمز السري (مطابق لتصميم الرسمة اليدوية)
             ft.Container(
                 content=ft.Column([
                     ft.Row([
@@ -226,7 +222,6 @@ def main(page: ft.Page):
                 border=ft.border.all(1, ft.Colors.BLUE_200)
             ),
 
-            # خانة المظهر (مطابق لتصميم الرسمة اليدوية المظهر الداكن/الفاتح)
             ft.Container(
                 content=ft.Column([
                     ft.Row([
