@@ -188,7 +188,7 @@ def main(page: ft.Page):
             pin_input,
             ft.ElevatedButton(content=ft.Text("فتح التطبيق 🔓", color=ft.Colors.WHITE), on_click=try_unlock_app, bgcolor=ft.Colors.BLUE_600, style=ft.ButtonStyle(padding=15, shape=ft.RoundedRectangleBorder(radius=10)))
         ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, scroll=ft.ScrollMode.AUTO),
-        alignment=ft.alignment.center,
+        alignment=ft.alignment.CENTER,
         expand=True,
         visible=(get_setting("lock_enabled") == "True")
     )
@@ -403,7 +403,7 @@ def main(page: ft.Page):
             horizontal_alignment=ft.CrossAxisAlignment.CENTER,
             scroll=ft.ScrollMode.AUTO,
         ),
-        alignment=ft.alignment.center,
+        alignment=ft.alignment.CENTER,
         expand=True,
         visible=(get_setting("lock_enabled") != "True")
     )
@@ -483,7 +483,7 @@ def main(page: ft.Page):
             calendar_grid.controls.append(
                 ft.Container(
                     content=ft.Text(w, size=11, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_700, text_align=ft.TextAlign.CENTER),
-                    alignment=ft.alignment.center,
+                    alignment=ft.alignment.CENTER,
                 )
             )
             
@@ -542,7 +542,7 @@ def main(page: ft.Page):
                         content=day_content,
                         bgcolor=bg_color,
                         border_radius=8,
-                        alignment=ft.alignment.center
+                        alignment=ft.alignment.CENTER
                     ),
                     on_tap=make_day_click(date_str)
                 )
