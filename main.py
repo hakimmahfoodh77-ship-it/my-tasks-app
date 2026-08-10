@@ -2,6 +2,13 @@ import flet as ft
 import sqlite3
 from datetime import datetime, timedelta
 
+# استيراد مكتبة الإشعارات الخارجية
+try:
+    from plyer import notification
+    PLYER_AVAILABLE = True
+except ImportError:
+    PLYER_AVAILABLE = False
+
 def init_db():
     conn = sqlite3.connect("data.db")
     cursor = conn.cursor()
@@ -108,6 +115,19 @@ def main(page: ft.Page):
         )
         page.snack_bar.open = True
         page.update()
+
+    # دالة إرسال الإشعارات الخارجية الحقيقية
+    def send_system_notification(title, message):
+        if PLYER_AVAILABLE:
+            try:
+                notification.notify(
+                    title=title,
+                    message=message,
+                    app_name="منظّم يومك 🎯",
+                    timeout=10
+                )
+            except Exception as e:
+                print("خطأ في عرض الإشعار:", e)
 
     def toggle_theme(e):
         if page.theme_mode == ft.ThemeMode.LIGHT:
@@ -450,6 +470,7 @@ def main(page: ft.Page):
         
         if due_count > 0:
             show_snack(f"تنبيه: لديك {due_count} مهام مستحقة اليوم!", icon=ft.Icons.NOTIFICATIONS_ACTIVE)
+            send_system_notification("تنبيه مهام اليوم 🎯", f"لديك {due_count} مهام مستحقة الإنجاز اليوم!")
 
     selected_calendar_date = {"date": datetime.now().strftime("%Y-%m-%d")}
     current_cal_year = {"y": datetime.now().year}
@@ -741,6 +762,7 @@ def main(page: ft.Page):
             load_analytics()
             update_stats()
             show_snack("تمت إضافة المهمة بنجاح!", icon=ft.Icons.TASK_ALT)
+            send_system_notification("إضافة مهمة جديدة 📝", f"تمت إضافة المهمة: {title}")
 
     task_input = ft.TextField(
         hint_text="أدخل مهمة جديدة...", 
@@ -936,6 +958,7 @@ def main(page: ft.Page):
                 load_analytics()
                 update_stats()
                 show_snack("تمت إضافة المصروف بنجاح!", icon=ft.Icons.ATTACH_MONEY)
+                send_system_notification("تسجيل مصروف 💰", f"تم إضافة مصروف بقيمة {amount:.2f} ريال ({cat})")
             except ValueError:
                 show_snack("يرجى إدخال مبلغ صحيح!", icon=ft.Icons.ERROR, is_error=True)
 
